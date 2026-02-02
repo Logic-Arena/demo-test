@@ -35,14 +35,11 @@ OPENAI_API_KEY=your_openai_api_key
 
 Supabase 대시보드에서 SQL Editor를 열고 `supabase/schema.sql` 파일의 내용을 실행하세요.
 
-**Realtime 활성화:**
-1. Supabase Dashboard > Database > Replication
-2. 다음 테이블들에 대해 Realtime 활성화:
-   - `rooms`
-   - `players`
-   - `game_states`
-   - `debate_cards`
-   - `judgments`
+**Realtime 활성화 (필수, 실시간 동기화용):**
+- **방법 1**: Supabase Dashboard > Database > Replication 에서 아래 테이블들의 Realtime 켜기
+- **방법 2**: SQL Editor에서 `supabase/realtime-publication.sql` 내용 실행
+
+테이블: `rooms`, `players`, `game_states`, `debate_cards`, `judgments`
 
 ### 4. 개발 서버 실행
 

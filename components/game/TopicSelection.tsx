@@ -38,25 +38,35 @@ export function TopicSelection() {
   const checkSelectionsAndProceed = async () => {
     if (!state.room || !state.gameState) return;
 
-    const { proSelection, conSelection, topicAttempts } = state.gameState;
+    // 재시도/랜덤 결정 전에 서버에서 최신 상태를 한 번 더 가져와서,
+    // 찬성/반대가 이미 서로 다르게 선택됐으면 그대로 진행하도록 함 (Realtime 지연 대비)
+    const { data: fresh } = await supabase
+      .from('game_states')
+      .select('pro_selection, con_selection, topic_attempts')
+      .eq('room_id', state.room.id)
+      .single();
 
-    // 둘 다 선택하지 않은 경우 또는 같은 역할 선택
-    if (!proSelection || !conSelection || proSelection === conSelection) {
-      if (topicAttempts >= 2) {
-        // 3회 시도 후 랜덤 배정
-        await assignRolesRandomly();
-      } else {
-        // 새 주제로 재시도
-        await retryWithNewTopic();
-      }
+    const proSelection = fresh?.pro_selection ?? state.gameState.proSelection;
+    const conSelection = fresh?.con_selection ?? state.gameState.conSelection;
+    const topicAttempts = fresh?.topic_attempts ?? state.gameState.topicAttempts;
+
+    // 찬성/반대가 서로 다르게 선택됐으면 → 그 주제로 게임 진행
+    const hasDifferentSelections = proSelection && conSelection && proSelection !== conSelection;
+    if (hasDifferentSelections) {
+      await assignRolesAndStartDebate(proSelection, conSelection);
+      return;
+    }
+
+    // 둘 다 선택 안 했거나, 둘 다 찬성이거나 둘 다 반대인 경우에만 새 주제/랜덤
+    if (topicAttempts >= 2) {
+      await assignRolesRandomly();
     } else {
-      // 역할 배정 성공
-      await assignRolesAndStartDebate();
+      await retryWithNewTopic(topicAttempts);
     }
   };
 
-  const retryWithNewTopic = async () => {
-    if (!state.room || !state.gameState) return;
+  const retryWithNewTopic = async (currentAttempts: number) => {
+    if (!state.room) return;
 
     const newTopic = getRandomTopic();
     const timerEndAt = new Date(Date.now() + 10 * 1000).toISOString();
@@ -65,7 +75,7 @@ export function TopicSelection() {
       .from('game_states')
       .update({
         topic: newTopic,
-        topic_attempts: state.gameState.topicAttempts + 1,
+        topic_attempts: currentAttempts + 1,
         timer_end_at: timerEndAt,
         pro_selection: null,
         con_selection: null,
@@ -100,16 +110,15 @@ export function TopicSelection() {
     await startDebate();
   };
 
-  const assignRolesAndStartDebate = async () => {
-    if (!state.room || !state.gameState) return;
+  const assignRolesAndStartDebate = async (proPlayerId: string, conPlayerId: string) => {
+    if (!state.room) return;
 
-    const { proSelection, conSelection } = state.gameState;
     const aiPlayers = state.players.filter(p => p.isAi);
 
-    // 플레이어 역할 업데이트
+    // 찬성/반대 선택한 플레이어에 맞춰 역할·팀 배정
     await Promise.all([
-      supabase.from('players').update({ role: 'pro', team: 'A' }).eq('id', proSelection),
-      supabase.from('players').update({ role: 'con', team: 'B' }).eq('id', conSelection),
+      supabase.from('players').update({ role: 'pro', team: 'A' }).eq('id', proPlayerId),
+      supabase.from('players').update({ role: 'con', team: 'B' }).eq('id', conPlayerId),
       supabase.from('players').update({ role: 'pro', team: 'A' }).eq('id', aiPlayers[0].id),
       supabase.from('players').update({ role: 'con', team: 'B' }).eq('id', aiPlayers[1].id),
     ]);

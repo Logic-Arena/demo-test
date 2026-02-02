@@ -33,7 +33,7 @@ export function RoomList() {
 
     loadRooms();
 
-    // 실시간 구독
+    // 실시간 구독 (Supabase Replication 활성화 시 즉시 반영)
     const channel = supabase
       .channel('rooms-list')
       .on(

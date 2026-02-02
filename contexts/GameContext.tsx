@@ -197,65 +197,55 @@ export function GameProvider({
     dispatch({ type: 'SET_LOADING', payload: true });
 
     try {
-      // 방 정보 로드
       const { data: roomData, error: roomError } = await supabase
         .from('rooms')
         .select('*')
         .eq('id', roomId)
         .single();
-
       if (roomError) throw roomError;
       dispatch({ type: 'SET_ROOM', payload: mapRoomFromDb(roomData) });
 
-      // 플레이어 목록 로드
       const { data: playersData, error: playersError } = await supabase
         .from('players')
         .select('*')
         .eq('room_id', roomId);
-
       if (playersError) throw playersError;
       dispatch({
         type: 'SET_PLAYERS',
         payload: (playersData || []).map(mapPlayerFromDb),
       });
 
-      // 게임 상태 로드
       const { data: gameStateData } = await supabase
         .from('game_states')
         .select('*')
         .eq('room_id', roomId)
         .single();
-
       if (gameStateData) {
         dispatch({ type: 'SET_GAME_STATE', payload: mapGameStateFromDb(gameStateData) });
       }
 
-      // 토론 카드 로드
       const { data: cardsData } = await supabase
         .from('debate_cards')
         .select('*')
         .eq('room_id', roomId)
         .order('created_at', { ascending: true });
-
       dispatch({
         type: 'SET_CARDS',
         payload: (cardsData || []).map(mapCardFromDb),
       });
 
-      // 판정 결과 로드
       const { data: judgmentData } = await supabase
         .from('judgments')
         .select('*')
         .eq('room_id', roomId)
         .single();
-
       if (judgmentData) {
         dispatch({ type: 'SET_JUDGMENT', payload: mapJudgmentFromDb(judgmentData) });
       }
-
-      dispatch({ type: 'SET_LOADING', payload: false });
     } catch (error) {
       dispatch({ type: 'SET_ERROR', payload: (error as Error).message });
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
     }
   }, [roomId, supabase]);
 
@@ -265,7 +255,7 @@ export function GameProvider({
     loadInitialData();
   }, [loadInitialData, supabase]);
 
-  // Realtime 구독 (별도 useEffect로 분리하여 불필요한 재구독 방지)
+  // Realtime 구독 (즉시 반영, Supabase Replication 설정 필요)
   useEffect(() => {
     if (!supabase) return;
 
@@ -351,6 +341,7 @@ export function GameProvider({
       supabase.removeChannel(channel);
     };
   }, [roomId, supabase]);
+
 
   // 방 참가
   const joinRoom = async (roomId: string, nickname: string) => {
