@@ -122,7 +122,7 @@ export function RoomList() {
     return (
       <div className="text-center py-12">
         <p className="text-red-500 mb-2">{error}</p>
-        <p className="text-sm text-gray-400">.env.local 파일에 Supabase 설정을 확인해주세요.</p>
+        <p className="text-sm text-gray-700">.env.local 파일에 Supabase 설정을 확인해주세요.</p>
       </div>
     );
   }
@@ -131,7 +131,7 @@ export function RoomList() {
     return (
       <div className="text-center py-12">
         <p className="text-gray-500 mb-4">현재 대기 중인 방이 없습니다.</p>
-        <p className="text-sm text-gray-400">새로운 방을 만들어 토론을 시작하세요!</p>
+        <p className="text-sm text-gray-700">새로운 방을 만들어 토론을 시작하세요!</p>
       </div>
     );
   }
@@ -147,7 +147,7 @@ export function RoomList() {
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <h3 className="font-semibold text-gray-900">{room.name}</h3>
-              <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+              <div className="flex items-center gap-4 mt-2 text-sm text-gray-700">
                 <span className="flex items-center gap-1">
                   <Users className="w-4 h-4" />
                   {room.playerCount}/2

@@ -259,10 +259,15 @@ export function GameProvider({
     }
   }, [roomId, supabase]);
 
-  // Realtime 구독
+  // 초기 데이터 로드
   useEffect(() => {
     if (!supabase) return;
     loadInitialData();
+  }, [loadInitialData, supabase]);
+
+  // Realtime 구독 (별도 useEffect로 분리하여 불필요한 재구독 방지)
+  useEffect(() => {
+    if (!supabase) return;
 
     const channel = supabase
       .channel(`room:${roomId}`)
@@ -345,7 +350,7 @@ export function GameProvider({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [roomId, supabase, loadInitialData]);
+  }, [roomId, supabase]);
 
   // 방 참가
   const joinRoom = async (roomId: string, nickname: string) => {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useGame } from '@/contexts/GameContext';
 import { createClient } from '@/lib/supabase/client';
 import { useTimer } from '@/hooks/useTimer';
@@ -12,7 +12,7 @@ export function TopicSelection() {
   const { state, selectRole } = useGame();
   const [selectedRole, setSelectedRole] = useState<'pro' | 'con' | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const currentPlayer = state.players.find(
     p => !p.isAi && localStorage.getItem(`room_${state.room?.id}_joined`)
@@ -159,13 +159,13 @@ export function TopicSelection() {
 
         {/* Topic */}
         <div className="text-center mb-8">
-          <p className="text-sm text-gray-500 mb-2">
+          <p className="text-sm text-gray-700 mb-2">
             토론 주제 {topicAttempts > 0 && `(${topicAttempts + 1}번째 시도)`}
           </p>
           <h2 className="text-2xl font-bold text-gray-900 mb-4">
             &ldquo;{state.gameState?.topic}&rdquo;
           </h2>
-          <p className="text-gray-600">
+          <p className="text-gray-800">
             찬성 또는 반대를 선택하세요. 선택이 겹치면 새 주제가 제안됩니다.
           </p>
         </div>
@@ -206,7 +206,7 @@ export function TopicSelection() {
               </div>
               <div>
                 <p className="font-semibold text-gray-900">찬성</p>
-                <p className="text-sm text-gray-500">Pro</p>
+                <p className="text-sm text-gray-700">Pro</p>
               </div>
             </div>
           </button>
@@ -232,7 +232,7 @@ export function TopicSelection() {
               </div>
               <div>
                 <p className="font-semibold text-gray-900">반대</p>
-                <p className="text-sm text-gray-500">Con</p>
+                <p className="text-sm text-gray-700">Con</p>
               </div>
             </div>
           </button>
@@ -241,7 +241,7 @@ export function TopicSelection() {
         {/* Selection Status */}
         {selectedRole && (
           <div className="text-center p-4 bg-gray-50 rounded-lg">
-            <p className="text-gray-600">
+            <p className="text-gray-800">
               <span className={selectedRole === 'pro' ? 'text-blue-600' : 'text-red-600'}>
                 {selectedRole === 'pro' ? '찬성' : '반대'}
               </span>
@@ -252,7 +252,7 @@ export function TopicSelection() {
 
         {/* Team Info */}
         <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-          <div className="flex items-center gap-2 text-sm text-gray-600">
+          <div className="flex items-center gap-2 text-sm text-gray-800">
             <Shuffle className="w-4 h-4" />
             <span>선택 후 AI 파트너가 같은 팀으로 배정됩니다</span>
           </div>

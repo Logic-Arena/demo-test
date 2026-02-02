@@ -69,7 +69,7 @@ function RoomContent() {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-          <p className="text-gray-600">방 정보를 불러오는 중...</p>
+          <p className="text-gray-800">방 정보를 불러오는 중...</p>
         </div>
       </div>
     );
@@ -138,7 +138,7 @@ function RoomContent() {
               </button>
               <div>
                 <h1 className="font-semibold text-gray-900">{state.room.name}</h1>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-700">
                   참가자: {state.players.filter(p => !p.isAi).length}/2
                 </p>
               </div>

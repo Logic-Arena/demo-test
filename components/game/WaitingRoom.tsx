@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useGame } from '@/contexts/GameContext';
 import { createClient } from '@/lib/supabase/client';
 import { Users, Clock, Loader2 } from 'lucide-react';
@@ -8,7 +8,7 @@ import { getRandomTopic } from '@/lib/gameLogic';
 
 export function WaitingRoom() {
   const { state } = useGame();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const humanPlayers = state.players.filter(p => !p.isAi);
 
   useEffect(() => {
@@ -63,7 +63,7 @@ export function WaitingRoom() {
             <Users className="w-8 h-8 text-blue-600" />
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">대기 중</h2>
-          <p className="text-gray-600">
+          <p className="text-gray-800">
             {humanPlayers.length < 2
               ? '상대방을 기다리고 있습니다...'
               : '게임을 시작하는 중...'}
@@ -72,7 +72,7 @@ export function WaitingRoom() {
 
         {/* Player List */}
         <div className="space-y-3 mb-8">
-          <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+          <h3 className="text-sm font-medium text-gray-700 uppercase tracking-wide">
             참가자 ({humanPlayers.length}/2)
           </h3>
           
@@ -86,7 +86,7 @@ export function WaitingRoom() {
               </div>
               <div className="flex-1">
                 <p className="font-medium text-gray-900">{player.nickname}</p>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-700">
                   {index === 0 ? '방장' : '참가자'}
                 </p>
               </div>
@@ -100,8 +100,8 @@ export function WaitingRoom() {
                 <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
               </div>
               <div className="flex-1">
-                <p className="text-gray-400">대기 중...</p>
-                <p className="text-sm text-gray-400">상대방을 기다리고 있습니다</p>
+                <p className="text-gray-700">대기 중...</p>
+                <p className="text-sm text-gray-700">상대방을 기다리고 있습니다</p>
               </div>
             </div>
           )}

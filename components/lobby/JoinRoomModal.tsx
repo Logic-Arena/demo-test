@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { X } from 'lucide-react';
 
@@ -21,7 +21,7 @@ export function JoinRoomModal({ isOpen, onClose, roomId, roomName, onJoined }: J
   });
   const [isJoining, setIsJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   if (!isOpen) return null;
 
@@ -93,7 +93,7 @@ export function JoinRoomModal({ isOpen, onClose, roomId, roomName, onJoined }: J
 
         <form onSubmit={handleJoin} className="p-4 space-y-4">
           <div className="p-3 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-500">참가할 방</p>
+            <p className="text-sm text-gray-700">참가할 방</p>
             <p className="font-medium">{roomName}</p>
           </div>
 

@@ -32,10 +32,10 @@ export function JudgingResult() {
             <Loader2 className="w-10 h-10 text-yellow-600 animate-spin" />
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-4">AI 심판이 분석 중입니다</h2>
-          <p className="text-gray-600 mb-2">
+          <p className="text-gray-800 mb-2">
             전체 토론 내용을 검토하고 있습니다.
           </p>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-700">
             잠시만 기다려 주세요...
           </p>
 
@@ -43,19 +43,19 @@ export function JudgingResult() {
           <div className="mt-8 grid grid-cols-3 gap-4 text-center">
             <div className="p-4 bg-gray-50 rounded-lg">
               <p className="text-2xl font-bold text-gray-900">{cards.length}</p>
-              <p className="text-sm text-gray-500">총 발언 수</p>
+              <p className="text-sm text-gray-700">총 발언 수</p>
             </div>
             <div className="p-4 bg-blue-50 rounded-lg">
               <p className="text-2xl font-bold text-blue-600">
                 {cards.filter(c => getPlayerById(c.playerId)?.role === 'pro').length}
               </p>
-              <p className="text-sm text-gray-500">찬성팀 발언</p>
+              <p className="text-sm text-gray-700">찬성팀 발언</p>
             </div>
             <div className="p-4 bg-red-50 rounded-lg">
               <p className="text-2xl font-bold text-red-600">
                 {cards.filter(c => getPlayerById(c.playerId)?.role === 'con').length}
               </p>
-              <p className="text-sm text-gray-500">반대팀 발언</p>
+              <p className="text-sm text-gray-700">반대팀 발언</p>
             </div>
           </div>
         </div>
@@ -87,7 +87,7 @@ export function JudgingResult() {
         <h1 className={`text-3xl font-bold ${winnerDisplay.color} mb-2`}>
           {winnerDisplay.label}
         </h1>
-        <p className="text-gray-600">
+        <p className="text-gray-800">
           토론 주제: &ldquo;{state.gameState?.topic}&rdquo;
         </p>
       </div>
@@ -115,7 +115,7 @@ export function JudgingResult() {
                   {index === 0 && <Medal className="w-6 h-6 text-yellow-500" />}
                   {index === 1 && <Medal className="w-6 h-6 text-gray-400" />}
                   {index === 2 && <Medal className="w-6 h-6 text-amber-600" />}
-                  {index > 2 && <span className="text-gray-400 font-medium">{index + 1}</span>}
+                  {index > 2 && <span className="text-gray-700 font-medium">{index + 1}</span>}
                 </div>
                 
                 <div className="flex-1">
@@ -134,7 +134,7 @@ export function JudgingResult() {
 
                 <div className="text-right">
                   <span className="text-2xl font-bold text-gray-900">{score}</span>
-                  <span className="text-gray-500">/100</span>
+                  <span className="text-gray-700">/100</span>
                 </div>
               </div>
             );

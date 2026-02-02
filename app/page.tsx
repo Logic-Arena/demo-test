@@ -5,7 +5,7 @@ import { useState } from 'react';
 
 const RoomList = dynamic(() => import('@/components/lobby/RoomList').then(m => ({ default: m.RoomList })), { 
   ssr: false,
-  loading: () => <div className="text-center py-12 text-gray-500">로딩 중...</div>
+  loading: () => <div className="text-center py-12 text-gray-700">로딩 중...</div>
 });
 const CreateRoomModal = dynamic(() => import('@/components/lobby/CreateRoomModal').then(m => ({ default: m.CreateRoomModal })), { 
   ssr: false 
@@ -26,7 +26,7 @@ export default function Home() {
             </div>
             <div>
               <h1 className="text-xl font-bold text-gray-900">Logic Arena</h1>
-              <p className="text-sm text-gray-500">AI-인간 하이브리드 토론 게임</p>
+              <p className="text-sm text-gray-700">AI-인간 하이브리드 토론 게임</p>
             </div>
           </div>
         </div>
@@ -38,7 +38,7 @@ export default function Home() {
           <h2 className="text-2xl font-bold text-gray-900 mb-4">
             AI와 함께하는 2:2 토론 대결
           </h2>
-          <p className="text-gray-600 mb-6">
+          <p className="text-gray-800 mb-6">
             사람과 AI가 팀을 이루어 다양한 주제에 대해 논리적으로 토론합니다.
             <br />
             당신의 논리력을 시험하고, AI 심판의 공정한 판정을 받아보세요.
@@ -50,21 +50,21 @@ export default function Home() {
               <Users className="w-5 h-5 text-blue-600 mt-0.5" />
               <div>
                 <h3 className="font-medium text-gray-900">2:2 팀 토론</h3>
-                <p className="text-sm text-gray-600">사람 + AI 팀 구성</p>
+                <p className="text-sm text-gray-800">사람 + AI 팀 구성</p>
               </div>
             </div>
             <div className="flex items-start gap-3 p-4 bg-green-50 rounded-lg">
               <Brain className="w-5 h-5 text-green-600 mt-0.5" />
               <div>
                 <h3 className="font-medium text-gray-900">AI 파트너</h3>
-                <p className="text-sm text-gray-600">GPT-4가 팀원으로 참여</p>
+                <p className="text-sm text-gray-800">GPT-4가 팀원으로 참여</p>
               </div>
             </div>
             <div className="flex items-start gap-3 p-4 bg-yellow-50 rounded-lg">
               <Trophy className="w-5 h-5 text-yellow-600 mt-0.5" />
               <div>
                 <h3 className="font-medium text-gray-900">AI 심판</h3>
-                <p className="text-sm text-gray-600">공정한 점수와 피드백</p>
+                <p className="text-sm text-gray-800">공정한 점수와 피드백</p>
               </div>
             </div>
           </div>
@@ -94,7 +94,7 @@ export default function Home() {
         {/* Game Rules */}
         <div className="mt-8 bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">게임 규칙</h2>
-          <div className="space-y-4 text-sm text-gray-600">
+          <div className="space-y-4 text-sm text-gray-800">
             <div>
               <h3 className="font-medium text-gray-900 mb-1">1. 팀 구성</h3>
               <p>2명의 플레이어가 입장하면 게임이 시작됩니다. AI가 주제를 제안하고, 각자 찬성/반대를 선택합니다.</p>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef, useMemo } from 'react';
 import { useGame } from '@/contexts/GameContext';
 import { useTimer } from '@/hooks/useTimer';
 import { createClient } from '@/lib/supabase/client';
@@ -21,7 +21,7 @@ import { GamePhase, PHASE_TIME_LIMITS } from '@/types/game';
 
 export function DebateArena() {
   const { state, submitCard, triggerAiResponse } = useGame();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const hasTriggeredAiRef = useRef(false);
 
   const phase = state.gameState?.phase as GamePhase;
@@ -113,7 +113,7 @@ export function DebateArena() {
         <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
-              <p className="text-sm text-gray-500 mb-1">토론 주제</p>
+              <p className="text-sm text-gray-700 mb-1">토론 주제</p>
               <h2 className="text-lg font-bold text-gray-900">
                 &ldquo;{state.gameState?.topic}&rdquo;
               </h2>
