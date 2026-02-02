@@ -152,6 +152,9 @@ export function TopicSelection() {
 
     try {
       await selectRole(role);
+      // 선택 후 바로 서버에서 최신 상태를 조회해서 둘 다 선택됐으면 진행
+      // (Realtime이 안 될 때도 동작하도록)
+      await checkSelectionsAndProceed();
     } catch (error) {
       console.error('역할 선택 실패:', error);
       setSelectedRole(null);
