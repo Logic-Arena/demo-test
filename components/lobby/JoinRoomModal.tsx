@@ -47,29 +47,36 @@ export function JoinRoomModal({ isOpen, onClose, roomId, roomName, onJoined }: J
         .eq('user_id', user?.id)
         .single();
 
+      let playerId: string;
+
       if (existingPlayer) {
         // 이미 참가한 경우 닉네임만 업데이트
         await supabase
           .from('players')
           .update({ nickname: nickname.trim() })
           .eq('id', existingPlayer.id);
+        playerId = existingPlayer.id;
       } else {
         // 새로 참가
-        const { error: playerError } = await supabase
+        const { data: newPlayer, error: playerError } = await supabase
           .from('players')
           .insert({
             room_id: roomId,
             user_id: user?.id || null,
             nickname: nickname.trim(),
             is_ai: false,
-          });
+          })
+          .select()
+          .single();
 
         if (playerError) throw playerError;
+        playerId = newPlayer.id;
       }
 
-      // 닉네임을 로컬 스토리지에 저장
+      // 닉네임과 플레이어 ID를 로컬 스토리지에 저장
       localStorage.setItem('nickname', nickname.trim());
       localStorage.setItem(`room_${roomId}_joined`, 'true');
+      localStorage.setItem(`room_${roomId}_playerId`, playerId);
 
       onJoined();
     } catch (err) {

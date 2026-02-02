@@ -80,20 +80,23 @@ export function CreateRoomModal({ isOpen, onClose }: CreateRoomModalProps) {
       if (gameStateError) throw gameStateError;
 
       // 호스트를 플레이어로 추가
-      const { error: playerError } = await supabase
+      const { data: player, error: playerError } = await supabase
         .from('players')
         .insert({
           room_id: room.id,
           user_id: user?.id || null,
           nickname: nickname.trim(),
           is_ai: false,
-        });
+        })
+        .select()
+        .single();
 
       if (playerError) throw playerError;
 
-      // 닉네임을 로컬 스토리지에 저장
+      // 닉네임과 플레이어 ID를 로컬 스토리지에 저장
       localStorage.setItem('nickname', nickname.trim());
       localStorage.setItem(`room_${room.id}_joined`, 'true');
+      localStorage.setItem(`room_${room.id}_playerId`, player.id);
 
       // 방으로 이동
       router.push(`/room/${room.id}`);

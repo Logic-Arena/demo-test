@@ -210,10 +210,17 @@ export function GameProvider({
         .select('*')
         .eq('room_id', roomId);
       if (playersError) throw playersError;
-      dispatch({
-        type: 'SET_PLAYERS',
-        payload: (playersData || []).map(mapPlayerFromDb),
-      });
+      const players = (playersData || []).map(mapPlayerFromDb);
+      dispatch({ type: 'SET_PLAYERS', payload: players });
+
+      // localStorage에 저장된 플레이어 ID로 currentPlayer 설정
+      const storedPlayerId = localStorage.getItem(`room_${roomId}_playerId`);
+      if (storedPlayerId) {
+        const currentPlayer = players.find(p => p.id === storedPlayerId);
+        if (currentPlayer) {
+          dispatch({ type: 'SET_CURRENT_PLAYER', payload: currentPlayer });
+        }
+      }
 
       const { data: gameStateData } = await supabase
         .from('game_states')
