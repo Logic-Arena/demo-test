@@ -11,7 +11,7 @@ import {
   Judgment,
   GamePhase,
 } from '@/types/game';
-import { calculateTimerEndAt, getNextPhase, getRandomTopic } from '@/lib/gameLogic';
+import { calculateTimerEndAt, getNextPhase, getRandomTopic, getRequiredSubmitterIds, isAiTurn } from '@/lib/gameLogic';
 
 // 액션 타입
 type GameAction =
@@ -343,6 +343,29 @@ export function GameProvider({
   }, [roomId, supabase]);
 
 
+  // Realtime으로 카드가 들어왔을 때 전원 제출 시 다음 단계로 진행 (AI 제출 후 등)
+  // 인간 턴은 submitCard에서 이미 진행하므로 여기서는 AI 턴일 때만 진행
+  useEffect(() => {
+    if (!supabase || !state.gameState) return;
+    const phase = state.gameState.phase;
+    if (!isAiTurn(phase)) return;
+    const requiredIds = getRequiredSubmitterIds(phase, state.players);
+    if (requiredIds.length === 0) return;
+    const cardsInPhase = state.cards.filter(c => c.phase === phase);
+    const submittedIds = [...new Set(cardsInPhase.map(c => c.playerId))];
+    const allSubmitted = requiredIds.every(id => submittedIds.includes(id));
+    if (!allSubmitted) return;
+
+    const nextPhase = getNextPhase(phase);
+    if (!nextPhase) return;
+    const timerEndAt = calculateTimerEndAt(nextPhase);
+    supabase
+      .from('game_states')
+      .update({ phase: nextPhase, timer_end_at: timerEndAt })
+      .eq('room_id', roomId)
+      .then(() => {});
+  }, [state.cards, state.gameState?.phase, state.players, roomId, supabase]);
+
   // 방 참가
   const joinRoom = async (roomId: string, nickname: string) => {
     if (!supabase) throw new Error('Supabase 연결 설정이 필요합니다.');
@@ -385,17 +408,45 @@ export function GameProvider({
       .eq('room_id', roomId);
   };
 
-  // 카드 제출
+  // 카드 제출 (제출 즉시 화면에 반영 + 필요 시 다음 단계로 진행)
   const submitCard = async (content: string) => {
     if (!supabase || !state.currentPlayer || !state.gameState) return;
 
-    await supabase.from('debate_cards').insert({
-      room_id: roomId,
-      player_id: state.currentPlayer.id,
-      phase: state.gameState.phase,
-      sub_phase: state.gameState.subPhase,
-      content,
-    });
+    const { data, error } = await supabase
+      .from('debate_cards')
+      .insert({
+        room_id: roomId,
+        player_id: state.currentPlayer.id,
+        phase: state.gameState.phase,
+        sub_phase: state.gameState.subPhase,
+        content,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    if (data) {
+      dispatch({ type: 'ADD_CARD', payload: mapCardFromDb(data) });
+    }
+
+    // 이 페이즈에서 제출해야 할 사람이 전원 제출했으면 타이머 없이 다음 단계로
+    const phase = state.gameState.phase;
+    const requiredIds = getRequiredSubmitterIds(phase, state.players);
+    const cardsInPhase = [...state.cards, ...(data ? [mapCardFromDb(data)] : [])].filter(
+      c => c.phase === phase
+    );
+    const submittedIds = [...new Set(cardsInPhase.map(c => c.playerId))];
+    const allSubmitted = requiredIds.length > 0 && requiredIds.every(id => submittedIds.includes(id));
+    if (allSubmitted) {
+      const nextPhase = getNextPhase(phase);
+      if (nextPhase) {
+        const timerEndAt = calculateTimerEndAt(nextPhase);
+        await supabase
+          .from('game_states')
+          .update({ phase: nextPhase, timer_end_at: timerEndAt })
+          .eq('room_id', roomId);
+      }
+    }
   };
 
   // 페이즈 진행
