@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { GameProvider, useGame } from '@/contexts/GameContext';
@@ -18,9 +18,16 @@ function RoomContent() {
   const roomId = params.roomId as string;
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [hasJoined, setHasJoined] = useState(false);
-  const supabase = createClient();
+  const supabase = useMemo(() => {
+    try {
+      return createClient();
+    } catch {
+      return null;
+    }
+  }, []);
 
   useEffect(() => {
+    if (!supabase) return;
     // 이미 참가했는지 확인
     const checkJoined = async () => {
       const localJoined = localStorage.getItem(`room_${roomId}_joined`);

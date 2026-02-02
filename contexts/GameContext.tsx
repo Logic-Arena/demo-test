@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useReducer, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useCallback, useMemo, ReactNode } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import {
   FullGameState,
@@ -176,10 +176,24 @@ export function GameProvider({
   roomId: string;
 }) {
   const [state, dispatch] = useReducer(gameReducer, initialState);
-  const supabase = createClient();
+  const supabase = useMemo(() => {
+    try {
+      return createClient();
+    } catch {
+      return null;
+    }
+  }, []);
+
+  // Supabase 연결 실패 시 에러 처리
+  useEffect(() => {
+    if (!supabase) {
+      dispatch({ type: 'SET_ERROR', payload: 'Supabase 연결 설정이 필요합니다.' });
+    }
+  }, [supabase]);
 
   // 초기 데이터 로드
   const loadInitialData = useCallback(async () => {
+    if (!supabase) return;
     dispatch({ type: 'SET_LOADING', payload: true });
 
     try {
@@ -247,6 +261,7 @@ export function GameProvider({
 
   // Realtime 구독
   useEffect(() => {
+    if (!supabase) return;
     loadInitialData();
 
     const channel = supabase
@@ -334,6 +349,7 @@ export function GameProvider({
 
   // 방 참가
   const joinRoom = async (roomId: string, nickname: string) => {
+    if (!supabase) throw new Error('Supabase 연결 설정이 필요합니다.');
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -355,7 +371,7 @@ export function GameProvider({
 
   // 방 나가기
   const leaveRoom = async () => {
-    if (!state.currentPlayer) return;
+    if (!supabase || !state.currentPlayer) return;
 
     await supabase.from('players').delete().eq('id', state.currentPlayer.id);
     dispatch({ type: 'SET_CURRENT_PLAYER', payload: null });
@@ -363,7 +379,7 @@ export function GameProvider({
 
   // 역할 선택
   const selectRole = async (role: 'pro' | 'con') => {
-    if (!state.currentPlayer || !state.gameState) return;
+    if (!supabase || !state.currentPlayer || !state.gameState) return;
 
     const updateField = role === 'pro' ? 'pro_selection' : 'con_selection';
 
@@ -375,7 +391,7 @@ export function GameProvider({
 
   // 카드 제출
   const submitCard = async (content: string) => {
-    if (!state.currentPlayer || !state.gameState) return;
+    if (!supabase || !state.currentPlayer || !state.gameState) return;
 
     await supabase.from('debate_cards').insert({
       room_id: roomId,
@@ -388,7 +404,7 @@ export function GameProvider({
 
   // 페이즈 진행
   const advancePhase = async () => {
-    if (!state.gameState) return;
+    if (!supabase || !state.gameState) return;
 
     const nextPhase = getNextPhase(state.gameState.phase);
     if (!nextPhase) return;
