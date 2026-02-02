@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { openai, JUDGE_SYSTEM_PROMPT } from '@/lib/openai';
+import { getOpenAI, JUDGE_SYSTEM_PROMPT } from '@/lib/openai';
 import { createServiceClient } from '@/lib/supabase/server';
 import { DebateCard, Player } from '@/types/game';
 
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     }).join('\n');
 
     // OpenAI API 호출
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAI().chat.completions.create({
       model: 'gpt-4o',
       messages: [
         { role: 'system', content: JUDGE_SYSTEM_PROMPT },

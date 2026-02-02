@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { openai, getDebaterSystemPrompt } from '@/lib/openai';
+import { getOpenAI, getDebaterSystemPrompt } from '@/lib/openai';
 import { createServiceClient } from '@/lib/supabase/server';
 import { DebateCard, Player, GamePhase } from '@/types/game';
 import { getNextPhase, calculateTimerEndAt } from '@/lib/gameLogic';
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     }
 
     // OpenAI API 호출
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAI().chat.completions.create({
       model: 'gpt-4o',
       messages: [
         { role: 'system', content: systemPrompt },

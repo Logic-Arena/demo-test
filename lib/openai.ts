@@ -1,8 +1,16 @@
 import OpenAI from 'openai';
 
-export const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// 지연 초기화 (빌드 시점에 환경 변수가 없어도 에러 안 남)
+let openaiInstance: OpenAI | null = null;
+
+export function getOpenAI(): OpenAI {
+  if (!openaiInstance) {
+    openaiInstance = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+  }
+  return openaiInstance;
+}
 
 // AI 토론자 시스템 프롬프트
 export function getDebaterSystemPrompt(role: 'pro' | 'con', topic: string): string {
