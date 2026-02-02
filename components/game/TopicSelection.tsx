@@ -38,8 +38,7 @@ export function TopicSelection() {
   const checkSelectionsAndProceed = async () => {
     if (!state.room || !state.gameState) return;
 
-    // 재시도/랜덤 결정 전에 서버에서 최신 상태를 한 번 더 가져와서,
-    // 찬성/반대가 이미 서로 다르게 선택됐으면 그대로 진행하도록 함 (Realtime 지연 대비)
+    // 서버에서 최신 상태를 가져와서 판단 (Realtime 지연·타이밍 이슈 방지)
     const { data: fresh } = await supabase
       .from('game_states')
       .select('pro_selection, con_selection, topic_attempts')
@@ -57,7 +56,12 @@ export function TopicSelection() {
       return;
     }
 
-    // 둘 다 선택 안 했거나, 둘 다 찬성이거나 둘 다 반대인 경우에만 새 주제/랜덤
+    // 한 명만 선택했거나 아무도 안 했으면 아무것도 하지 않음 (상대 선택·타이머 대기)
+    if (!proSelection || !conSelection) {
+      return;
+    }
+
+    // 둘 다 선택했는데 같은 역할(찬성+찬성 또는 반대+반대)인 경우에만 새 주제/랜덤
     if (topicAttempts >= 2) {
       await assignRolesRandomly();
     } else {

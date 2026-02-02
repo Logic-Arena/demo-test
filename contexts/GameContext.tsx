@@ -301,9 +301,17 @@ export function GameProvider({
           table: 'game_states',
           filter: `room_id=eq.${roomId}`,
         },
-        (payload) => {
+        async (payload) => {
           if (payload.new) {
             dispatch({ type: 'SET_GAME_STATE', payload: mapGameStateFromDb(payload.new) });
+            const { data } = await supabase
+              .from('debate_cards')
+              .select('*')
+              .eq('room_id', roomId)
+              .order('created_at', { ascending: true });
+            if (data) {
+              dispatch({ type: 'SET_CARDS', payload: data.map(mapCardFromDb) });
+            }
           }
         }
       )
@@ -408,6 +416,19 @@ export function GameProvider({
       .eq('room_id', roomId);
   };
 
+  // 카드 목록 다시 불러오기 (제출 후·phase 변경 시 동기화용). 반환값으로 목록 전달.
+  const refetchCards = useCallback(async (): Promise<DebateCard[]> => {
+    if (!supabase) return [];
+    const { data } = await supabase
+      .from('debate_cards')
+      .select('*')
+      .eq('room_id', roomId)
+      .order('created_at', { ascending: true });
+    const list = (data || []).map(mapCardFromDb);
+    dispatch({ type: 'SET_CARDS', payload: list });
+    return list;
+  }, [roomId, supabase]);
+
   // 카드 제출 (제출 즉시 화면에 반영 + 필요 시 다음 단계로 진행)
   const submitCard = async (content: string) => {
     if (!supabase || !state.currentPlayer || !state.gameState) return;
@@ -425,18 +446,20 @@ export function GameProvider({
       .single();
 
     if (error) throw error;
-    if (data) {
-      dispatch({ type: 'ADD_CARD', payload: mapCardFromDb(data) });
+    const newCard = data ? mapCardFromDb(data) : null;
+    if (newCard) {
+      dispatch({ type: 'ADD_CARD', payload: newCard });
     }
 
-    // 이 페이즈에서 제출해야 할 사람이 전원 제출했으면 타이머 없이 다음 단계로
     const phase = state.gameState.phase;
     const requiredIds = getRequiredSubmitterIds(phase, state.players);
-    const cardsInPhase = [...state.cards, ...(data ? [mapCardFromDb(data)] : [])].filter(
-      c => c.phase === phase
-    );
+
+    // 제출 직후 카드 목록 재조회 (다른 클라이언트와 동기화) 후 전원 제출 여부 판단
+    const afterCards = await refetchCards();
+    const cardsInPhase = afterCards.filter(c => c.phase === phase);
     const submittedIds = [...new Set(cardsInPhase.map(c => c.playerId))];
     const allSubmitted = requiredIds.length > 0 && requiredIds.every(id => submittedIds.includes(id));
+
     if (allSubmitted) {
       const nextPhase = getNextPhase(phase);
       if (nextPhase) {
