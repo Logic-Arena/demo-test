@@ -84,16 +84,47 @@ export function isSimultaneousPhase(phase: GamePhase): boolean {
 }
 
 // 이 페이즈에서 제출해야 할 플레이어 ID 목록 (전원 제출 시 다음 단계로 진행용)
-// 동시 작성 페이즈(Phase0/Phase5)는 UI에서 제출하는 인간 2명 기준
 export function getRequiredSubmitterIds(phase: GamePhase, players: Player[]): string[] {
   if (phase === 'waiting' || phase === 'topic_selection' || phase === 'judging' || phase === 'finished') {
     return [];
   }
   if (isSimultaneousPhase(phase)) {
-    return players.filter(p => !p.isAi).map(p => p.id);
+    // 전원 (AI 포함 4명)
+    return players.map(p => p.id);
+  }
+  if (isTeamDefenseTurn(phase)) {
+    // 팀 전원 (인간 + AI)
+    const teamRole = phase.includes('conTeam') ? 'con' : 'pro';
+    return players.filter(p => p.role === teamRole).map(p => p.id);
   }
   const turnPlayer = getCurrentTurnPlayer(phase, players);
   return turnPlayer ? [turnPlayer.id] : [];
+}
+
+// 해당 페이즈에서 AI가 카드를 제출해야 하는 AI 플레이어 목록
+export function getAiPlayersForPhase(phase: GamePhase, players: Player[]): Player[] {
+  const aiA = players.find(p => p.isAi && p.role === 'pro');
+  const aiB = players.find(p => p.isAi && p.role === 'con');
+
+  switch (phase) {
+    case 'phase0_claim':
+    case 'phase5_final':
+      return [aiA, aiB].filter(Boolean) as Player[];
+    case 'cycle1_conTeam_defense':
+    case 'cycle3_conTeam_defense':
+      return aiB ? [aiB] : [];
+    case 'cycle2_proTeam_defense':
+    case 'cycle4_proTeam_defense':
+      return aiA ? [aiA] : [];
+    case 'cycle3_aiA_rebuttal':
+    case 'cycle3_aiA_counter':
+      return aiA ? [aiA] : [];
+    case 'cycle4_aiB_rebuttal':
+    case 'cycle4_aiB_counter':
+      return aiB ? [aiB] : [];
+    default:
+      return [];
+  }
 }
 
 // 토론 주제 생성 (AI가 제안할 주제 예시)

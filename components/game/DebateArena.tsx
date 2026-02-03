@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback, useRef, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useGame } from '@/contexts/GameContext';
 import { useTimer } from '@/hooks/useTimer';
 import { createClient } from '@/lib/supabase/client';
@@ -20,9 +20,8 @@ import {
 import { GamePhase, PHASE_TIME_LIMITS } from '@/types/game';
 
 export function DebateArena() {
-  const { state, submitCard, triggerAiResponse } = useGame();
+  const { state, submitCard } = useGame();
   const supabase = useMemo(() => createClient(), []);
-  const hasTriggeredAiRef = useRef(false);
 
   const phase = state.gameState?.phase as GamePhase;
   const players = state.players;
@@ -76,16 +75,6 @@ export function DebateArena() {
     state.gameState?.timerEndAt || null,
     { onTimeout: handleTimeout }
   );
-
-  // AI 차례일 때 자동 응답 트리거
-  useEffect(() => {
-    if (isAiTurn(phase) && !hasTriggeredAiRef.current) {
-      hasTriggeredAiRef.current = true;
-      triggerAiResponse().catch(console.error);
-    } else if (!isAiTurn(phase)) {
-      hasTriggeredAiRef.current = false;
-    }
-  }, [phase, triggerAiResponse]);
 
   // 카드 제출 핸들러
   const handleSubmit = async (content: string) => {

@@ -21,19 +21,27 @@ export function WaitingRoom() {
   const startGame = async () => {
     if (!state.room) return;
 
-    // AI 플레이어 2명 추가
-    await supabase.from('players').insert([
-      {
-        room_id: state.room.id,
-        nickname: 'AI_A',
-        is_ai: true,
-      },
-      {
-        room_id: state.room.id,
-        nickname: 'AI_B',
-        is_ai: true,
-      },
-    ]);
+    // AI 플레이어 중복 생성 방지 — DB에서 직접 확인
+    const { data: existingAi } = await supabase
+      .from('players')
+      .select('id')
+      .eq('room_id', state.room.id)
+      .eq('is_ai', true);
+
+    if (!existingAi || existingAi.length === 0) {
+      await supabase.from('players').insert([
+        {
+          room_id: state.room.id,
+          nickname: 'AI_A',
+          is_ai: true,
+        },
+        {
+          room_id: state.room.id,
+          nickname: 'AI_B',
+          is_ai: true,
+        },
+      ]);
+    }
 
     // 게임 상태를 topic_selection으로 변경
     const topic = getRandomTopic();

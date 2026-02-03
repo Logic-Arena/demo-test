@@ -22,16 +22,27 @@ export async function POST(request: NextRequest) {
     const body: JudgeRequest = await request.json();
     const { roomId, topic, cards, players } = body;
 
+    // 참가자 목록 — role 기준 중복 제거 (인간 우선, AI 보조)
+    const uniquePlayers: Player[] = [];
+    const seenRoles = new Set<string>();
+    for (const p of players) {
+      const key = `${p.role}_${p.isAi}`;
+      if (!seenRoles.has(key)) {
+        seenRoles.add(key);
+        uniquePlayers.push(p);
+      }
+    }
+
     // 전체 토론 내용을 구성
     const debateLog = cards.map(card => {
-      const player = players.find(p => p.id === card.playerId);
+      const player = uniquePlayers.find(p => p.id === card.playerId);
       const role = player?.role === 'pro' ? '찬성' : '반대';
       const isAi = player?.isAi ? ' (AI)' : '';
       return `[${role}${isAi}] ${player?.nickname} (ID: ${player?.id}):\n${card.content}`;
     }).join('\n\n---\n\n');
 
     // 참가자 목록
-    const participantList = players.map(p => {
+    const participantList = uniquePlayers.map(p => {
       const role = p.role === 'pro' ? '찬성' : '반대';
       const isAi = p.isAi ? ' (AI)' : '';
       return `- ${p.nickname}${isAi}: ${role} (ID: ${p.id})`;

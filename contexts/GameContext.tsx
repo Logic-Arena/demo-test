@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useReducer, useEffect, useCallback, useMemo, ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useCallback, useMemo, useRef, ReactNode } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import {
   FullGameState,
@@ -11,7 +11,7 @@ import {
   Judgment,
   GamePhase,
 } from '@/types/game';
-import { calculateTimerEndAt, getNextPhase, getRandomTopic, getRequiredSubmitterIds, isAiTurn } from '@/lib/gameLogic';
+import { calculateTimerEndAt, getNextPhase, getRandomTopic, getRequiredSubmitterIds, getAiPlayersForPhase } from '@/lib/gameLogic';
 
 // 액션 타입
 type GameAction =
@@ -51,16 +51,27 @@ function gameReducer(state: FullGameState, action: GameAction): FullGameState {
     case 'SET_ROOM':
       return { ...state, room: action.payload };
     case 'SET_PLAYERS':
-      return { ...state, players: action.payload };
+      return {
+        ...state,
+        players: action.payload,
+        currentPlayer: state.currentPlayer
+          ? action.payload.find(p => p.id === state.currentPlayer!.id) || state.currentPlayer
+          : state.currentPlayer,
+      };
     case 'ADD_PLAYER':
       return { ...state, players: [...state.players, action.payload] };
-    case 'UPDATE_PLAYER':
+    case 'UPDATE_PLAYER': {
+      const updated = action.payload;
       return {
         ...state,
         players: state.players.map((p) =>
-          p.id === action.payload.id ? action.payload : p
+          p.id === updated.id ? updated : p
         ),
+        currentPlayer: state.currentPlayer?.id === updated.id
+          ? updated
+          : state.currentPlayer,
       };
+    }
     case 'REMOVE_PLAYER':
       return {
         ...state,
@@ -395,18 +406,21 @@ export function GameProvider({
     return () => clearInterval(interval);
   }, [roomId, supabase]);
 
-  // Realtime으로 카드가 들어왔을 때 전원 제출 시 다음 단계로 진행 (AI 제출 후 등)
-  // 인간 턴은 submitCard에서 이미 진행하므로 여기서는 AI 턴일 때만 진행
+  // 모든 필수 제출이 완료되면 다음 단계로 진행 (인간 + AI 공통)
+  const advancingPhaseRef = useRef<string | null>(null);
   useEffect(() => {
     if (!supabase || !state.gameState) return;
     const phase = state.gameState.phase;
-    if (!isAiTurn(phase)) return;
     const requiredIds = getRequiredSubmitterIds(phase, state.players);
     if (requiredIds.length === 0) return;
     const cardsInPhase = state.cards.filter(c => c.phase === phase);
     const submittedIds = [...new Set(cardsInPhase.map(c => c.playerId))];
     const allSubmitted = requiredIds.every(id => submittedIds.includes(id));
     if (!allSubmitted) return;
+
+    // 같은 phase에 대해 중복 advance 방지
+    if (advancingPhaseRef.current === phase) return;
+    advancingPhaseRef.current = phase;
 
     const nextPhase = getNextPhase(phase);
     if (!nextPhase) return;
@@ -417,6 +431,34 @@ export function GameProvider({
       .eq('room_id', roomId)
       .then(() => {});
   }, [state.cards, state.gameState?.phase, state.players, roomId, supabase]);
+
+  // AI 트리거 — phase 변경 시 해당 phase에서 AI가 카드를 제출해야 하면 호출
+  const triggeredPhaseRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!state.gameState || state.players.length === 0) return;
+    const phase = state.gameState.phase;
+    if (triggeredPhaseRef.current === phase) return;
+
+    const aiPlayers = getAiPlayersForPhase(phase, state.players);
+    if (aiPlayers.length === 0) return;
+
+    triggeredPhaseRef.current = phase;
+
+    aiPlayers.forEach(aiPlayer => {
+      fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          roomId,
+          phase,
+          topic: state.gameState!.topic,
+          cards: state.cards,
+          players: state.players,
+          targetPlayerId: aiPlayer.id,
+        }),
+      }).catch(err => console.error('[AI trigger] 실패:', aiPlayer.id, err));
+    });
+  }, [state.gameState?.phase, state.players, roomId]);
 
   // 방 참가
   const joinRoom = async (roomId: string, nickname: string) => {
