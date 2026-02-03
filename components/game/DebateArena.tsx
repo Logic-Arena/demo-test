@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useGame } from '@/contexts/GameContext';
 import { useTimer } from '@/hooks/useTimer';
 import { createClient } from '@/lib/supabase/client';
@@ -26,6 +26,15 @@ export function DebateArena() {
   const phase = state.gameState?.phase as GamePhase;
   const players = state.players;
   const cards = state.cards;
+
+  const cardContainerRef = useRef<HTMLDivElement>(null);
+
+  // 카드 추가 시 자동 스크롤
+  useEffect(() => {
+    if (cardContainerRef.current) {
+      cardContainerRef.current.scrollTop = cardContainerRef.current.scrollHeight;
+    }
+  }, [cards]);
 
   // 현재 플레이어 찾기
   const currentPlayer = state.currentPlayer;
@@ -124,7 +133,7 @@ export function DebateArena() {
         </div>
 
         {/* Card Stack */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4 max-h-[400px] overflow-y-auto">
+        <div ref={cardContainerRef} className="bg-white rounded-xl border border-gray-200 p-4 mb-4 max-h-[400px] overflow-y-auto">
           <CardStack 
             cards={cards} 
             players={players}

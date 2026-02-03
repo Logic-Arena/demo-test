@@ -100,7 +100,7 @@ export interface FullGameState {
 
 // 페이즈별 시간 제한 (초)
 export const PHASE_TIME_LIMITS: Partial<Record<GamePhase, number>> = {
-  topic_selection: 10,
+  topic_selection: 30,
   phase0_claim: 120, // 2분
   cycle1_humanA_rebuttal: 120,
   cycle1_conTeam_defense: 90,

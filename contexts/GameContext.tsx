@@ -433,11 +433,17 @@ export function GameProvider({
   }, [state.cards, state.gameState?.phase, state.players, roomId, supabase]);
 
   // AI 트리거 — phase 변경 시 해당 phase에서 AI가 카드를 제출해야 하면 호출
+  // 리더 클라이언트(인간 플레이어 ID 정렬 시 첫 번째)만 트리거하여 이중 호출 방지
   const triggeredPhaseRef = useRef<string | null>(null);
   useEffect(() => {
     if (!state.gameState || state.players.length === 0) return;
     const phase = state.gameState.phase;
     if (triggeredPhaseRef.current === phase) return;
+
+    // 리더 클라이언트만 AI를 트리거
+    const humanPlayers = state.players.filter(p => !p.isAi).sort((a, b) => a.id.localeCompare(b.id));
+    const isLeader = state.currentPlayer && humanPlayers.length > 0 && humanPlayers[0].id === state.currentPlayer.id;
+    if (!isLeader) return;
 
     const aiPlayers = getAiPlayersForPhase(phase, state.players);
     if (aiPlayers.length === 0) return;
@@ -458,7 +464,7 @@ export function GameProvider({
         }),
       }).catch(err => console.error('[AI trigger] 실패:', aiPlayer.id, err));
     });
-  }, [state.gameState?.phase, state.players, roomId]);
+  }, [state.gameState?.phase, state.players, state.currentPlayer, roomId]);
 
   // 방 참가
   const joinRoom = async (roomId: string, nickname: string) => {
@@ -562,6 +568,10 @@ export function GameProvider({
     console.log('[submitCard] requiredIds:', requiredIds, 'submittedIds:', submittedIds, 'allSubmitted:', allSubmitted);
 
     if (allSubmitted) {
+      // advancingPhaseRef로 useEffect와의 이중 advance 방지
+      if (advancingPhaseRef.current === phase) return;
+      advancingPhaseRef.current = phase;
+
       const nextPhase = getNextPhase(phase);
       if (nextPhase) {
         const timerEndAt = calculateTimerEndAt(nextPhase);

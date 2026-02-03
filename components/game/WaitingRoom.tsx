@@ -45,7 +45,7 @@ export function WaitingRoom() {
 
     // 게임 상태를 topic_selection으로 변경
     const topic = getRandomTopic();
-    const timerEndAt = new Date(Date.now() + 10 * 1000).toISOString();
+    const timerEndAt = new Date(Date.now() + 30 * 1000).toISOString();
 
     await supabase
       .from('game_states')

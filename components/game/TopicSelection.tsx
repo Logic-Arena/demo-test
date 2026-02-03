@@ -72,7 +72,7 @@ export function TopicSelection() {
     if (!state.room) return;
 
     const newTopic = getRandomTopic();
-    const timerEndAt = new Date(Date.now() + 10 * 1000).toISOString();
+    const timerEndAt = new Date(Date.now() + 30 * 1000).toISOString();
 
     await supabase
       .from('game_states')
@@ -169,7 +169,7 @@ export function TopicSelection() {
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
         {/* Timer */}
         <div className="flex justify-center mb-6">
-          <Timer remaining={remaining} formattedTime={formattedTime} totalSeconds={10} />
+          <Timer remaining={remaining} formattedTime={formattedTime} totalSeconds={30} />
         </div>
 
         {/* Topic */}
