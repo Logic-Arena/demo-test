@@ -51,11 +51,11 @@ export function TopicSelection() {
   );
 
   useEffect(() => {
-    // 선택이 완료되었는지 확인
-    if (state.gameState?.proSelection && state.gameState?.conSelection) {
-      checkSelectionsAndProceed();
-    }
-  }, [state.gameState?.proSelection, state.gameState?.conSelection]);
+    // 인간 플레이어 전원이 역할을 선택했는지 확인
+    const humanPlayers = state.players.filter(p => !p.isAi);
+    const allSelected = humanPlayers.length >= 2 && humanPlayers.every(p => p.role);
+    if (allSelected) checkSelectionsAndProceed();
+  }, [state.players]);
 
   const checkSelectionsAndProceed = async () => {
     if (!state.room || !state.gameState || !state.currentPlayer) return;
@@ -65,27 +65,22 @@ export function TopicSelection() {
     const isLeader = humanPlayers.length > 0 && humanPlayers[0].id === state.currentPlayer.id;
     if (!isLeader) return;
 
-    // 서버에서 최신 상태를 가져와서 판단 (Realtime 지연·타이밍 이슈 방지)
-    const { data: fresh } = await supabase
-      .from('game_states')
-      .select('pro_selection, con_selection, topic_attempts')
-      .eq('room_id', state.room.id)
-      .single();
+    // DB에서 최신 플레이어 조회 (Realtime 지연·타이밍 이슈 방지)
+    const { data: freshPlayers } = await supabase
+      .from('players').select('*')
+      .eq('room_id', state.room.id).eq('is_ai', false);
 
-    // pro_selection = 첫 번째 플레이어의 선택, con_selection = 두 번째 플레이어의 선택 (역할 문자열)
-    const choice1 = fresh?.pro_selection ?? state.gameState.proSelection;
-    const choice2 = fresh?.con_selection ?? state.gameState.conSelection;
-    const topicAttempts = fresh?.topic_attempts ?? state.gameState.topicAttempts;
-    console.log('[checkSelectionsAndProceed] choice1:', choice1, 'choice2:', choice2);
+    if (!freshPlayers || freshPlayers.length < 2) return;
+    const roles = freshPlayers.map(p => p.role).filter(Boolean);
+    if (roles.length < 2) return; // 한쪽 미선택
 
-    // 한쪽 미선택 → 대기
-    if (!choice1 || !choice2) return;
+    const topicAttempts = state.gameState.topicAttempts;
 
-    if (choice1 !== choice2) {
+    if (roles[0] !== roles[1]) {
       // 다른 역할 → 배정 후 시작
-      const proPlayerId = choice1 === 'pro' ? humanPlayers[0].id : humanPlayers[1].id;
-      const conPlayerId = choice1 === 'con' ? humanPlayers[0].id : humanPlayers[1].id;
-      await assignRolesAndStartDebate(proPlayerId, conPlayerId);
+      const proId = freshPlayers.find(p => p.role === 'pro')!.id;
+      const conId = freshPlayers.find(p => p.role === 'con')!.id;
+      await assignRolesAndStartDebate(proId, conId);
     } else {
       // 같은 역할 → 재시도 or 랜덤
       if (topicAttempts >= 2) {
@@ -102,16 +97,21 @@ export function TopicSelection() {
     const newTopic = getRandomTopic();
     const timerEndAt = new Date(Date.now() + 30 * 1000).toISOString();
 
+    // game_states 업데이트 (topic, timer 등)
     await supabase
       .from('game_states')
       .update({
         topic: newTopic,
         topic_attempts: currentAttempts + 1,
         timer_end_at: timerEndAt,
-        pro_selection: null,
-        con_selection: null,
       })
       .eq('room_id', state.room.id);
+
+    // 인간 플레이어 role 초기화
+    const humanPlayers = state.players.filter(p => !p.isAi);
+    await Promise.all(
+      humanPlayers.map(p => supabase.from('players').update({ role: null }).eq('id', p.id))
+    );
 
     setSelectedRole(null);
   };

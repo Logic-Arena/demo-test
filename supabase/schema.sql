@@ -32,8 +32,8 @@ create table if not exists public.game_states (
   topic text,
   topic_attempts int default 0,
   timer_end_at timestamp with time zone,
-  pro_selection text,
-  con_selection text,
+  pro_selection uuid references public.players(id) on delete set null,
+  con_selection uuid references public.players(id) on delete set null,
   updated_at timestamp with time zone default now()
 );
 
