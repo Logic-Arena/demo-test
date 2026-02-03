@@ -109,18 +109,11 @@ export function DebateArena() {
       <div className="flex-1 min-w-0">
         {/* Header */}
         <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div>
-              <p className="text-sm text-gray-700 mb-1">토론 주제</p>
-              <h2 className="text-lg font-bold text-gray-900">
-                &ldquo;{state.gameState?.topic}&rdquo;
-              </h2>
-            </div>
-            <Timer 
-              remaining={remaining} 
-              formattedTime={formattedTime} 
-              totalSeconds={totalSeconds}
-            />
+          <div>
+            <p className="text-sm text-gray-700 mb-1">토론 주제</p>
+            <h2 className="text-lg font-bold text-gray-900">
+              &ldquo;{state.gameState?.topic}&rdquo;
+            </h2>
           </div>
         </div>
 
@@ -140,6 +133,15 @@ export function DebateArena() {
             cards={cards} 
             players={players}
             currentPhase={phase}
+          />
+        </div>
+
+        {/* Timer */}
+        <div className="flex justify-center mb-4">
+          <Timer
+            remaining={remaining}
+            formattedTime={formattedTime}
+            totalSeconds={totalSeconds}
           />
         </div>
 
