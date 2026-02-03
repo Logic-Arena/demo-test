@@ -28,12 +28,14 @@ export function DebateArena() {
   const cards = state.cards;
 
   const cardContainerRef = useRef<HTMLDivElement>(null);
+  const prevCardCountRef = useRef(0);
 
-  // 카드 추가 시 자동 스크롤
+  // 카드가 새로 추가된 경우에만 자동 스크롤 (폴링으로 같은 데이터 재설정 시 스크롤 방지)
   useEffect(() => {
-    if (cardContainerRef.current) {
+    if (cards.length > prevCardCountRef.current && cardContainerRef.current) {
       cardContainerRef.current.scrollTop = cardContainerRef.current.scrollHeight;
     }
+    prevCardCountRef.current = cards.length;
   }, [cards]);
 
   // 현재 플레이어 찾기

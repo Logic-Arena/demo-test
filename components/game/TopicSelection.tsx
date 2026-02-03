@@ -1,12 +1,26 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useGame } from '@/contexts/GameContext';
 import { createClient } from '@/lib/supabase/client';
 import { useTimer } from '@/hooks/useTimer';
 import { Timer } from '@/components/game/Timer';
 import { ThumbsUp, ThumbsDown, AlertCircle, Shuffle } from 'lucide-react';
 import { getRandomTopic } from '@/lib/gameLogic';
+import { Player } from '@/types/game';
+
+function mapPlayerFromDb(row: Record<string, unknown>): Player {
+  return {
+    id: row.id as string,
+    roomId: row.room_id as string,
+    userId: row.user_id as string | null,
+    nickname: row.nickname as string,
+    role: row.role as 'pro' | 'con' | null,
+    isAi: row.is_ai as boolean,
+    team: row.team as 'A' | 'B' | null,
+    joinedAt: row.joined_at as string,
+  };
+}
 
 export function TopicSelection() {
   const { state, selectRole } = useGame();
@@ -15,6 +29,16 @@ export function TopicSelection() {
   const supabase = useMemo(() => createClient(), []);
 
   const currentPlayer = state.currentPlayer;
+
+  // topic 변경 시 selectedRole 리셋 (리더가 retryWithNewTopic 실행 후 비리더에서도 리셋)
+  const prevTopicRef = useRef(state.gameState?.topic);
+  useEffect(() => {
+    if (state.gameState?.topic && state.gameState.topic !== prevTopicRef.current) {
+      prevTopicRef.current = state.gameState.topic;
+      setSelectedRole(null);
+      setIsSubmitting(false);
+    }
+  }, [state.gameState?.topic]);
 
   const handleTimeout = async () => {
     // 시간 초과 시 처리
@@ -34,7 +58,12 @@ export function TopicSelection() {
   }, [state.gameState?.proSelection, state.gameState?.conSelection]);
 
   const checkSelectionsAndProceed = async () => {
-    if (!state.room || !state.gameState) return;
+    if (!state.room || !state.gameState || !state.currentPlayer) return;
+
+    // 리더 클라이언트만 mutation 실행 (ID가 가장 작은 인간 플레이어)
+    const humanPlayers = state.players.filter(p => !p.isAi).sort((a, b) => a.id.localeCompare(b.id));
+    const isLeader = humanPlayers.length > 0 && humanPlayers[0].id === state.currentPlayer.id;
+    if (!isLeader) return;
 
     // 서버에서 최신 상태를 가져와서 판단 (Realtime 지연·타이밍 이슈 방지)
     const { data: fresh } = await supabase
@@ -43,28 +72,27 @@ export function TopicSelection() {
       .eq('room_id', state.room.id)
       .single();
 
-    const proSelection = fresh?.pro_selection ?? state.gameState.proSelection;
-    const conSelection = fresh?.con_selection ?? state.gameState.conSelection;
+    // pro_selection = 첫 번째 플레이어의 선택, con_selection = 두 번째 플레이어의 선택 (역할 문자열)
+    const choice1 = fresh?.pro_selection ?? state.gameState.proSelection;
+    const choice2 = fresh?.con_selection ?? state.gameState.conSelection;
     const topicAttempts = fresh?.topic_attempts ?? state.gameState.topicAttempts;
-    console.log('[checkSelectionsAndProceed] proSelection:', proSelection, 'conSelection:', conSelection);
+    console.log('[checkSelectionsAndProceed] choice1:', choice1, 'choice2:', choice2);
 
-    // 찬성/반대가 서로 다르게 선택됐으면 → 그 주제로 게임 진행
-    const hasDifferentSelections = proSelection && conSelection && proSelection !== conSelection;
-    if (hasDifferentSelections) {
-      await assignRolesAndStartDebate(proSelection, conSelection);
-      return;
-    }
+    // 한쪽 미선택 → 대기
+    if (!choice1 || !choice2) return;
 
-    // 한 명만 선택했거나 아무도 안 했으면 아무것도 하지 않음 (상대 선택·타이머 대기)
-    if (!proSelection || !conSelection) {
-      return;
-    }
-
-    // 둘 다 선택했는데 같은 역할(찬성+찬성 또는 반대+반대)인 경우에만 새 주제/랜덤
-    if (topicAttempts >= 2) {
-      await assignRolesRandomly();
+    if (choice1 !== choice2) {
+      // 다른 역할 → 배정 후 시작
+      const proPlayerId = choice1 === 'pro' ? humanPlayers[0].id : humanPlayers[1].id;
+      const conPlayerId = choice1 === 'con' ? humanPlayers[0].id : humanPlayers[1].id;
+      await assignRolesAndStartDebate(proPlayerId, conPlayerId);
     } else {
-      await retryWithNewTopic(topicAttempts);
+      // 같은 역할 → 재시도 or 랜덤
+      if (topicAttempts >= 2) {
+        await assignRolesRandomly();
+      } else {
+        await retryWithNewTopic(topicAttempts);
+      }
     }
   };
 
@@ -92,7 +120,15 @@ export function TopicSelection() {
     if (!state.room) return;
 
     const humanPlayers = state.players.filter(p => !p.isAi);
-    const aiPlayers = state.players.filter(p => p.isAi);
+    let aiPlayers = state.players.filter(p => p.isAi);
+
+    // AI 플레이어가 state에 없으면 DB에서 조회
+    if (aiPlayers.length < 2) {
+      const { data } = await supabase.from('players').select('*')
+        .eq('room_id', state.room.id).eq('is_ai', true);
+      if (data) aiPlayers = data.map(mapPlayerFromDb);
+    }
+    if (aiPlayers.length < 2) return;
 
     // 랜덤으로 역할 배정
     const shuffled = [...humanPlayers].sort(() => Math.random() - 0.5);
@@ -116,7 +152,15 @@ export function TopicSelection() {
   const assignRolesAndStartDebate = async (proPlayerId: string, conPlayerId: string) => {
     if (!state.room) return;
 
-    const aiPlayers = state.players.filter(p => p.isAi);
+    let aiPlayers = state.players.filter(p => p.isAi);
+
+    // AI 플레이어가 state에 없으면 DB에서 조회
+    if (aiPlayers.length < 2) {
+      const { data } = await supabase.from('players').select('*')
+        .eq('room_id', state.room.id).eq('is_ai', true);
+      if (data) aiPlayers = data.map(mapPlayerFromDb);
+    }
+    if (aiPlayers.length < 2) return;
 
     // 찬성/반대 선택한 플레이어에 맞춰 역할·팀 배정
     await Promise.all([

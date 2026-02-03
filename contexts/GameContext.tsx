@@ -496,7 +496,7 @@ export function GameProvider({
     dispatch({ type: 'SET_CURRENT_PLAYER', payload: null });
   };
 
-  // 역할 선택
+  // 역할 선택 (per-player slot: 첫 번째 플레이어 → pro_selection, 두 번째 → con_selection에 역할 문자열 저장)
   const selectRole = async (role: 'pro' | 'con') => {
     console.log('[selectRole] currentPlayer:', state.currentPlayer?.id, state.currentPlayer?.nickname);
     if (!supabase || !state.currentPlayer || !state.gameState) {
@@ -504,17 +504,20 @@ export function GameProvider({
       return;
     }
 
-    const updateField = role === 'pro' ? 'pro_selection' : 'con_selection';
+    const humanPlayers = state.players.filter(p => !p.isAi).sort((a, b) => a.id.localeCompare(b.id));
+    const isFirstPlayer = humanPlayers[0]?.id === state.currentPlayer.id;
+    const updateField = isFirstPlayer ? 'pro_selection' : 'con_selection';
+    const stateField = isFirstPlayer ? 'proSelection' : 'conSelection';
 
     await supabase
       .from('game_states')
-      .update({ [updateField]: state.currentPlayer.id })
+      .update({ [updateField]: role })
       .eq('room_id', roomId);
 
     // 로컬 상태도 즉시 업데이트
     dispatch({
       type: 'SET_GAME_STATE',
-      payload: { ...state.gameState, [role === 'pro' ? 'proSelection' : 'conSelection']: state.currentPlayer.id }
+      payload: { ...state.gameState, [stateField]: role }
     });
   };
 

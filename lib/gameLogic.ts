@@ -187,7 +187,7 @@ export function getCardColor(role: 'pro' | 'con' | null): string {
 // 플레이어 표시 이름 생성
 export function getPlayerDisplayName(player: Player): string {
   if (player.isAi) {
-    return player.role === 'pro' ? 'AI_A (찬성)' : 'AI_B (반대)';
+    return player.role === 'pro' ? '찬성AI' : '반대AI';
   }
   return `${player.nickname} (${player.role === 'pro' ? '찬성' : '반대'})`;
 }

@@ -32,12 +32,12 @@ export function WaitingRoom() {
       await supabase.from('players').insert([
         {
           room_id: state.room.id,
-          nickname: 'AI_A',
+          nickname: '찬성AI',
           is_ai: true,
         },
         {
           room_id: state.room.id,
-          nickname: 'AI_B',
+          nickname: '반대AI',
           is_ai: true,
         },
       ]);
