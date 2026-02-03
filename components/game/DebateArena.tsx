@@ -29,9 +29,7 @@ export function DebateArena() {
   const cards = state.cards;
 
   // 현재 플레이어 찾기
-  const currentPlayer = players.find(
-    p => !p.isAi && localStorage.getItem(`room_${state.room?.id}_joined`)
-  );
+  const currentPlayer = state.currentPlayer;
 
   // 현재 차례 플레이어
   const currentTurnPlayer = getCurrentTurnPlayer(phase, players);

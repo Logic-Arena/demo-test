@@ -14,9 +14,7 @@ export function TopicSelection() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const supabase = useMemo(() => createClient(), []);
 
-  const currentPlayer = state.players.find(
-    p => !p.isAi && localStorage.getItem(`room_${state.room?.id}_joined`)
-  );
+  const currentPlayer = state.currentPlayer;
 
   const handleTimeout = async () => {
     // 시간 초과 시 처리
@@ -48,6 +46,7 @@ export function TopicSelection() {
     const proSelection = fresh?.pro_selection ?? state.gameState.proSelection;
     const conSelection = fresh?.con_selection ?? state.gameState.conSelection;
     const topicAttempts = fresh?.topic_attempts ?? state.gameState.topicAttempts;
+    console.log('[checkSelectionsAndProceed] proSelection:', proSelection, 'conSelection:', conSelection);
 
     // 찬성/반대가 서로 다르게 선택됐으면 → 그 주제로 게임 진행
     const hasDifferentSelections = proSelection && conSelection && proSelection !== conSelection;

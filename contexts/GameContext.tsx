@@ -357,6 +357,43 @@ export function GameProvider({
     };
   }, [roomId, supabase]);
 
+  // 폴링으로 game_states, players, cards 재조회 (Realtime 미작동 환경 대비)
+  useEffect(() => {
+    if (!supabase) return;
+
+    const interval = setInterval(async () => {
+      // game_states 재조회
+      const { data: gsData } = await supabase
+        .from('game_states')
+        .select('*')
+        .eq('room_id', roomId)
+        .single();
+      if (gsData) {
+        dispatch({ type: 'SET_GAME_STATE', payload: mapGameStateFromDb(gsData) });
+      }
+
+      // players 재조회
+      const { data: playersData } = await supabase
+        .from('players')
+        .select('*')
+        .eq('room_id', roomId);
+      if (playersData) {
+        dispatch({ type: 'SET_PLAYERS', payload: playersData.map(mapPlayerFromDb) });
+      }
+
+      // cards 재조회
+      const { data: cardsData } = await supabase
+        .from('debate_cards')
+        .select('*')
+        .eq('room_id', roomId)
+        .order('created_at', { ascending: true });
+      if (cardsData) {
+        dispatch({ type: 'SET_CARDS', payload: cardsData.map(mapCardFromDb) });
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [roomId, supabase]);
 
   // Realtime으로 카드가 들어왔을 때 전원 제출 시 다음 단계로 진행 (AI 제출 후 등)
   // 인간 턴은 submitCard에서 이미 진행하므로 여기서는 AI 턴일 때만 진행
@@ -413,7 +450,11 @@ export function GameProvider({
 
   // 역할 선택
   const selectRole = async (role: 'pro' | 'con') => {
-    if (!supabase || !state.currentPlayer || !state.gameState) return;
+    console.log('[selectRole] currentPlayer:', state.currentPlayer?.id, state.currentPlayer?.nickname);
+    if (!supabase || !state.currentPlayer || !state.gameState) {
+      console.warn('[selectRole] 조건 미충족 - supabase:', !!supabase, 'currentPlayer:', !!state.currentPlayer, 'gameState:', !!state.gameState);
+      return;
+    }
 
     const updateField = role === 'pro' ? 'pro_selection' : 'con_selection';
 
@@ -421,6 +462,12 @@ export function GameProvider({
       .from('game_states')
       .update({ [updateField]: state.currentPlayer.id })
       .eq('room_id', roomId);
+
+    // 로컬 상태도 즉시 업데이트
+    dispatch({
+      type: 'SET_GAME_STATE',
+      payload: { ...state.gameState, [role === 'pro' ? 'proSelection' : 'conSelection']: state.currentPlayer.id }
+    });
   };
 
   // 카드 목록 다시 불러오기 (제출 후·phase 변경 시 동기화용). 반환값으로 목록 전달.
@@ -438,7 +485,11 @@ export function GameProvider({
 
   // 카드 제출 (제출 즉시 화면에 반영 + 필요 시 다음 단계로 진행)
   const submitCard = async (content: string) => {
-    if (!supabase || !state.currentPlayer || !state.gameState) return;
+    console.log('[submitCard] currentPlayer:', state.currentPlayer?.id, 'phase:', state.gameState?.phase);
+    if (!supabase || !state.currentPlayer || !state.gameState) {
+      console.warn('[submitCard] 조건 미충족 - supabase:', !!supabase, 'currentPlayer:', !!state.currentPlayer, 'gameState:', !!state.gameState);
+      return;
+    }
 
     const { data, error } = await supabase
       .from('debate_cards')
@@ -466,6 +517,7 @@ export function GameProvider({
     const cardsInPhase = afterCards.filter(c => c.phase === phase);
     const submittedIds = [...new Set(cardsInPhase.map(c => c.playerId))];
     const allSubmitted = requiredIds.length > 0 && requiredIds.every(id => submittedIds.includes(id));
+    console.log('[submitCard] requiredIds:', requiredIds, 'submittedIds:', submittedIds, 'allSubmitted:', allSubmitted);
 
     if (allSubmitted) {
       const nextPhase = getNextPhase(phase);
