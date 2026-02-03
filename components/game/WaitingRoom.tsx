@@ -53,6 +53,7 @@ export function WaitingRoom() {
         phase: 'topic_selection',
         topic,
         timer_end_at: timerEndAt,
+        topic_attempts: 0,
       })
       .eq('room_id', state.room.id);
 

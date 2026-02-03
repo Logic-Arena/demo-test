@@ -52,12 +52,20 @@ export function TopicSelection() {
     { onTimeout: handleTimeout }
   );
 
+  // 인간 플레이어 전원이 역할을 선택했는지 확인 (gameState 로드 후에도 재실행되도록 의존성 포함)
   useEffect(() => {
-    // 인간 플레이어 전원이 역할을 선택했는지 확인
+    if (!state.gameState || state.gameState.phase !== 'topic_selection') return;
     const humanPlayers = state.players.filter(p => !p.isAi);
     const allSelected = humanPlayers.length >= 2 && humanPlayers.every(p => p.role);
     if (allSelected) checkSelectionsAndProceed();
-  }, [state.players]);
+  }, [state.players, state.gameState?.phase, state.gameState?.topic]);
+
+  // 마운트 시 이미 찬성/반대가 둘 다 선택된 상태면 진행 (초기 로드·늦은 동기화 대비)
+  useEffect(() => {
+    if (!state.room || state.gameState?.phase !== 'topic_selection') return;
+    const t = setTimeout(() => checkSelectionsAndProceed(), 600);
+    return () => clearTimeout(t);
+  }, [state.room?.id, state.gameState?.phase]);
 
   const checkSelectionsAndProceed = async () => {
     if (!state.room || !state.gameState) return;
@@ -73,7 +81,7 @@ export function TopicSelection() {
     if (roles.length < 2) return; // 한쪽 미선택
 
     proceedingRef.current = true;
-    const topicAttempts = state.gameState.topicAttempts;
+    const topicAttempts = state.gameState?.topicAttempts ?? 0;
 
     if (roles[0] !== roles[1]) {
       // 다른 역할 → 배정 후 시작
