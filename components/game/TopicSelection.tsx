@@ -29,6 +29,7 @@ export function TopicSelection() {
   const supabase = useMemo(() => createClient(), []);
 
   const currentPlayer = state.currentPlayer;
+  const proceedingRef = useRef(false);
 
   // topic 변경 시 selectedRole 리셋 (리더가 retryWithNewTopic 실행 후 비리더에서도 리셋)
   const prevTopicRef = useRef(state.gameState?.topic);
@@ -37,6 +38,7 @@ export function TopicSelection() {
       prevTopicRef.current = state.gameState.topic;
       setSelectedRole(null);
       setIsSubmitting(false);
+      proceedingRef.current = false;
     }
   }, [state.gameState?.topic]);
 
@@ -58,14 +60,10 @@ export function TopicSelection() {
   }, [state.players]);
 
   const checkSelectionsAndProceed = async () => {
-    if (!state.room || !state.gameState || !state.currentPlayer) return;
+    if (!state.room || !state.gameState) return;
+    if (proceedingRef.current) return;
 
-    // 리더 클라이언트만 mutation 실행 (ID가 가장 작은 인간 플레이어)
-    const humanPlayers = state.players.filter(p => !p.isAi).sort((a, b) => a.id.localeCompare(b.id));
-    const isLeader = humanPlayers.length > 0 && humanPlayers[0].id === state.currentPlayer.id;
-    if (!isLeader) return;
-
-    // DB에서 최신 플레이어 조회 (Realtime 지연·타이밍 이슈 방지)
+    // DB에서 최신 플레이어 조회
     const { data: freshPlayers } = await supabase
       .from('players').select('*')
       .eq('room_id', state.room.id).eq('is_ai', false);
@@ -74,6 +72,7 @@ export function TopicSelection() {
     const roles = freshPlayers.map(p => p.role).filter(Boolean);
     if (roles.length < 2) return; // 한쪽 미선택
 
+    proceedingRef.current = true;
     const topicAttempts = state.gameState.topicAttempts;
 
     if (roles[0] !== roles[1]) {
@@ -83,6 +82,7 @@ export function TopicSelection() {
       await assignRolesAndStartDebate(proId, conId);
     } else {
       // 같은 역할 → 재시도 or 랜덤
+      proceedingRef.current = false;
       if (topicAttempts >= 2) {
         await assignRolesRandomly();
       } else {
@@ -121,31 +121,21 @@ export function TopicSelection() {
 
     const humanPlayers = state.players.filter(p => !p.isAi);
     let aiPlayers = state.players.filter(p => p.isAi);
-
-    // AI 플레이어가 state에 없으면 DB에서 조회
     if (aiPlayers.length < 2) {
       const { data } = await supabase.from('players').select('*')
         .eq('room_id', state.room.id).eq('is_ai', true);
       if (data) aiPlayers = data.map(mapPlayerFromDb);
     }
-    if (aiPlayers.length < 2) return;
 
-    // 랜덤으로 역할 배정
     const shuffled = [...humanPlayers].sort(() => Math.random() - 0.5);
-    const proHuman = shuffled[0];
-    const conHuman = shuffled[1];
-    const proAi = aiPlayers[0];
-    const conAi = aiPlayers[1];
-
-    // 플레이어 역할 업데이트
     await Promise.all([
-      supabase.from('players').update({ role: 'pro', team: 'A' }).eq('id', proHuman.id),
-      supabase.from('players').update({ role: 'con', team: 'B' }).eq('id', conHuman.id),
-      supabase.from('players').update({ role: 'pro', team: 'A' }).eq('id', proAi.id),
-      supabase.from('players').update({ role: 'con', team: 'B' }).eq('id', conAi.id),
+      supabase.from('players').update({ role: 'pro', team: 'A' }).eq('id', shuffled[0].id),
+      supabase.from('players').update({ role: 'con', team: 'B' }).eq('id', shuffled[1].id),
+      ...(aiPlayers.length >= 2 ? [
+        supabase.from('players').update({ role: 'pro', team: 'A' }).eq('id', aiPlayers[0].id),
+        supabase.from('players').update({ role: 'con', team: 'B' }).eq('id', aiPlayers[1].id),
+      ] : []),
     ]);
-
-    // 게임 시작
     await startDebate();
   };
 
@@ -153,23 +143,21 @@ export function TopicSelection() {
     if (!state.room) return;
 
     let aiPlayers = state.players.filter(p => p.isAi);
-
-    // AI 플레이어가 state에 없으면 DB에서 조회
     if (aiPlayers.length < 2) {
       const { data } = await supabase.from('players').select('*')
         .eq('room_id', state.room.id).eq('is_ai', true);
       if (data) aiPlayers = data.map(mapPlayerFromDb);
     }
-    if (aiPlayers.length < 2) return;
 
-    // 찬성/반대 선택한 플레이어에 맞춰 역할·팀 배정
+    // 인간 플레이어 역할·팀 배정
     await Promise.all([
       supabase.from('players').update({ role: 'pro', team: 'A' }).eq('id', proPlayerId),
       supabase.from('players').update({ role: 'con', team: 'B' }).eq('id', conPlayerId),
-      supabase.from('players').update({ role: 'pro', team: 'A' }).eq('id', aiPlayers[0].id),
-      supabase.from('players').update({ role: 'con', team: 'B' }).eq('id', aiPlayers[1].id),
+      ...(aiPlayers.length >= 2 ? [
+        supabase.from('players').update({ role: 'pro', team: 'A' }).eq('id', aiPlayers[0].id),
+        supabase.from('players').update({ role: 'con', team: 'B' }).eq('id', aiPlayers[1].id),
+      ] : []),
     ]);
-
     await startDebate();
   };
 
