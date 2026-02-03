@@ -6,21 +6,6 @@ import { createClient } from '@/lib/supabase/client';
 import { useTimer } from '@/hooks/useTimer';
 import { Timer } from '@/components/game/Timer';
 import { ThumbsUp, ThumbsDown, AlertCircle, Shuffle } from 'lucide-react';
-import { getRandomTopic } from '@/lib/gameLogic';
-import { Player } from '@/types/game';
-
-function mapPlayerFromDb(row: Record<string, unknown>): Player {
-  return {
-    id: row.id as string,
-    roomId: row.room_id as string,
-    userId: row.user_id as string | null,
-    nickname: row.nickname as string,
-    role: row.role as 'pro' | 'con' | null,
-    isAi: row.is_ai as boolean,
-    team: row.team as 'A' | 'B' | null,
-    joinedAt: row.joined_at as string,
-  };
-}
 
 export function TopicSelection() {
   const { state, selectRole } = useGame();
@@ -28,7 +13,6 @@ export function TopicSelection() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const supabase = useMemo(() => createClient(), []);
 
-  const currentPlayer = state.currentPlayer;
   const proceedingRef = useRef(false);
 
   // topic 변경 시 selectedRole 리셋 (리더가 retryWithNewTopic 실행 후 비리더에서도 리셋)
@@ -71,116 +55,64 @@ export function TopicSelection() {
     if (!state.room || !state.gameState) return;
     if (proceedingRef.current) return;
 
-    // DB에서 최신 플레이어 조회
     const { data: freshPlayers } = await supabase
-      .from('players').select('*')
-      .eq('room_id', state.room.id).eq('is_ai', false);
+      .from('players')
+      .select('*')
+      .eq('room_id', state.room.id)
+      .eq('is_ai', false);
 
     if (!freshPlayers || freshPlayers.length < 2) return;
     const roles = freshPlayers.map(p => p.role).filter(Boolean);
-    if (roles.length < 2) return; // 한쪽 미선택
+    if (roles.length < 2) return;
 
     proceedingRef.current = true;
     const topicAttempts = state.gameState?.topicAttempts ?? 0;
 
-    if (roles[0] !== roles[1]) {
-      // 다른 역할 → 배정 후 시작
-      const proId = freshPlayers.find(p => p.role === 'pro')!.id;
-      const conId = freshPlayers.find(p => p.role === 'con')!.id;
-      await assignRolesAndStartDebate(proId, conId);
-    } else {
-      // 같은 역할 → 재시도 or 랜덤
-      proceedingRef.current = false;
-      if (topicAttempts >= 2) {
-        await assignRolesRandomly();
+    try {
+      if (roles[0] !== roles[1]) {
+        // 찬성/반대 다름 → 서버에서 역할·팀 배정 후 토론 시작 (RLS 우회)
+        const res = await fetch('/api/game/confirm-topic', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ roomId: state.room.id }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          console.error('[confirm-topic]', err);
+          proceedingRef.current = false;
+          return;
+        }
       } else {
-        await retryWithNewTopic(topicAttempts);
+        // 같은 역할 → 재시도 or 랜덤 (서버에서 처리)
+        if (topicAttempts >= 2) {
+          const res = await fetch('/api/game/assign-random', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ roomId: state.room.id }),
+          });
+          if (!res.ok) {
+            console.error('[assign-random]', await res.json().catch(() => ({})));
+            proceedingRef.current = false;
+            return;
+          }
+        } else {
+          const res = await fetch('/api/game/retry-topic', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ roomId: state.room.id, topicAttempts }),
+          });
+          if (!res.ok) {
+            console.error('[retry-topic]', await res.json().catch(() => ({})));
+            proceedingRef.current = false;
+            return;
+          }
+          setSelectedRole(null);
+        }
       }
+    } catch (err) {
+      console.error('[topic proceed]', err);
+      proceedingRef.current = false;
     }
-  };
-
-  const retryWithNewTopic = async (currentAttempts: number) => {
-    if (!state.room) return;
-
-    const newTopic = getRandomTopic();
-    const timerEndAt = new Date(Date.now() + 30 * 1000).toISOString();
-
-    // game_states 업데이트 (topic, timer 등)
-    await supabase
-      .from('game_states')
-      .update({
-        topic: newTopic,
-        topic_attempts: currentAttempts + 1,
-        timer_end_at: timerEndAt,
-      })
-      .eq('room_id', state.room.id);
-
-    // 인간 플레이어 role 초기화
-    const humanPlayers = state.players.filter(p => !p.isAi);
-    await Promise.all(
-      humanPlayers.map(p => supabase.from('players').update({ role: null }).eq('id', p.id))
-    );
-
-    setSelectedRole(null);
-  };
-
-  const assignRolesRandomly = async () => {
-    if (!state.room) return;
-
-    const humanPlayers = state.players.filter(p => !p.isAi);
-    let aiPlayers = state.players.filter(p => p.isAi);
-    if (aiPlayers.length < 2) {
-      const { data } = await supabase.from('players').select('*')
-        .eq('room_id', state.room.id).eq('is_ai', true);
-      if (data) aiPlayers = data.map(mapPlayerFromDb);
-    }
-
-    const shuffled = [...humanPlayers].sort(() => Math.random() - 0.5);
-    await Promise.all([
-      supabase.from('players').update({ role: 'pro', team: 'A' }).eq('id', shuffled[0].id),
-      supabase.from('players').update({ role: 'con', team: 'B' }).eq('id', shuffled[1].id),
-      ...(aiPlayers.length >= 2 ? [
-        supabase.from('players').update({ role: 'pro', team: 'A' }).eq('id', aiPlayers[0].id),
-        supabase.from('players').update({ role: 'con', team: 'B' }).eq('id', aiPlayers[1].id),
-      ] : []),
-    ]);
-    await startDebate();
-  };
-
-  const assignRolesAndStartDebate = async (proPlayerId: string, conPlayerId: string) => {
-    if (!state.room) return;
-
-    let aiPlayers = state.players.filter(p => p.isAi);
-    if (aiPlayers.length < 2) {
-      const { data } = await supabase.from('players').select('*')
-        .eq('room_id', state.room.id).eq('is_ai', true);
-      if (data) aiPlayers = data.map(mapPlayerFromDb);
-    }
-
-    // 인간 플레이어 역할·팀 배정
-    await Promise.all([
-      supabase.from('players').update({ role: 'pro', team: 'A' }).eq('id', proPlayerId),
-      supabase.from('players').update({ role: 'con', team: 'B' }).eq('id', conPlayerId),
-      ...(aiPlayers.length >= 2 ? [
-        supabase.from('players').update({ role: 'pro', team: 'A' }).eq('id', aiPlayers[0].id),
-        supabase.from('players').update({ role: 'con', team: 'B' }).eq('id', aiPlayers[1].id),
-      ] : []),
-    ]);
-    await startDebate();
-  };
-
-  const startDebate = async () => {
-    if (!state.room) return;
-
-    const timerEndAt = new Date(Date.now() + 120 * 1000).toISOString(); // 2분
-
-    await supabase
-      .from('game_states')
-      .update({
-        phase: 'phase0_claim',
-        timer_end_at: timerEndAt,
-      })
-      .eq('room_id', state.room.id);
   };
 
   const handleSelect = async (role: 'pro' | 'con') => {
