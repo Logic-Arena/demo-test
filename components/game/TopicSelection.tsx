@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useGame } from '@/contexts/GameContext';
-import { createClient } from '@/lib/supabase/client';
 import { useTimer } from '@/hooks/useTimer';
 import { Timer } from '@/components/game/Timer';
 import { ThumbsUp, ThumbsDown, AlertCircle, Shuffle } from 'lucide-react';
@@ -11,7 +10,6 @@ export function TopicSelection() {
   const { state, selectRole } = useGame();
   const [selectedRole, setSelectedRole] = useState<'pro' | 'con' | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const supabase = useMemo(() => createClient(), []);
 
   const proceedingRef = useRef(false);
 
@@ -55,14 +53,10 @@ export function TopicSelection() {
     if (!state.room || !state.gameState) return;
     if (proceedingRef.current) return;
 
-    const { data: freshPlayers } = await supabase
-      .from('players')
-      .select('*')
-      .eq('room_id', state.room.id)
-      .eq('is_ai', false);
-
-    if (!freshPlayers || freshPlayers.length < 2) return;
-    const roles = freshPlayers.map(p => p.role).filter(Boolean);
+    // Realtime으로 이미 동기화된 state.players 사용 (DB 쿼리 제거)
+    const humanPlayers = state.players.filter(p => !p.isAi);
+    if (humanPlayers.length < 2) return;
+    const roles = humanPlayers.map(p => p.role).filter(Boolean);
     if (roles.length < 2) return;
 
     proceedingRef.current = true;
