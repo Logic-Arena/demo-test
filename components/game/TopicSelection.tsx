@@ -2,27 +2,33 @@
 
 import { useState, useEffect } from 'react';
 import { useGame } from '@/contexts/GameContext';
-import { ThumbsUp, ThumbsDown, AlertCircle, Shuffle } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, AlertCircle, Shuffle, Check } from 'lucide-react';
 
 export function TopicSelection() {
   const { state } = useGame();
-  const [selectedRole, setSelectedRole] = useState<'pro' | 'con' | null>(null);
+  const [pendingRole, setPendingRole] = useState<'pro' | 'con' | null>(null);
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   // topic 변경 시 UI 초기화
   useEffect(() => {
-    setSelectedRole(null);
+    setPendingRole(null);
+    setIsSubmitted(false);
     setIsSubmitting(false);
     setStatusMessage(null);
   }, [state.gameState?.topic]);
 
-  const handleSelect = async (role: 'pro' | 'con') => {
-    if (isSubmitting || selectedRole) return;
+  const handleRoleClick = (role: 'pro' | 'con') => {
+    if (isSubmitted || isSubmitting) return;
+    setPendingRole(role);
+  };
+
+  const handleSubmit = async () => {
+    if (!pendingRole || isSubmitting || isSubmitted) return;
     if (!state.room || !state.currentPlayer) return;
 
     setIsSubmitting(true);
-    setSelectedRole(role);
     setStatusMessage(null);
 
     try {
@@ -32,7 +38,7 @@ export function TopicSelection() {
         body: JSON.stringify({
           roomId: state.room.id,
           playerId: state.currentPlayer.id,
-          role,
+          role: pendingRole,
         }),
       });
 
@@ -40,10 +46,13 @@ export function TopicSelection() {
 
       if (!res.ok) {
         console.error('[select-role]', data.error);
-        setSelectedRole(null);
         setStatusMessage('오류가 발생했습니다. 다시 시도해주세요.');
+        setIsSubmitting(false);
         return;
       }
+
+      // 제출 성공
+      setIsSubmitted(true);
 
       // status에 따라 UI 메시지 표시
       switch (data.status) {
@@ -59,14 +68,13 @@ export function TopicSelection() {
           break;
         case 'retry':
           setStatusMessage('선택이 겹쳤습니다. 새로운 주제가 제시됩니다.');
-          // retry 시 selectedRole은 topic 변경 useEffect에서 초기화됨
+          // retry 시 상태는 topic 변경 useEffect에서 초기화됨
           break;
         default:
           break;
       }
     } catch (error) {
       console.error('역할 선택 실패:', error);
-      setSelectedRole(null);
       setStatusMessage('네트워크 오류가 발생했습니다. 다시 시도해주세요.');
     } finally {
       setIsSubmitting(false);
@@ -87,7 +95,7 @@ export function TopicSelection() {
             &ldquo;{state.gameState?.topic}&rdquo;
           </h2>
           <p className="text-gray-800">
-            찬성 또는 반대를 선택하세요. 선택이 겹치면 새 주제가 제안됩니다.
+            찬성 또는 반대를 선택한 후 선택 완료 버튼을 눌러주세요.
           </p>
         </div>
 
@@ -107,22 +115,22 @@ export function TopicSelection() {
         {/* Role Selection */}
         <div className="grid grid-cols-2 gap-4 mb-6">
           <button
-            onClick={() => handleSelect('pro')}
-            disabled={isSubmitting || !!selectedRole}
+            onClick={() => handleRoleClick('pro')}
+            disabled={isSubmitted || isSubmitting}
             className={`p-6 rounded-xl border-2 transition-all ${
-              selectedRole === 'pro'
+              pendingRole === 'pro'
                 ? 'border-blue-500 bg-blue-50'
-                : selectedRole
-                ? 'border-gray-200 bg-gray-50 opacity-50'
-                : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50'
+                : isSubmitted
+                ? 'border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed'
+                : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer'
             }`}
           >
             <div className="flex flex-col items-center gap-3">
               <div className={`p-3 rounded-full ${
-                selectedRole === 'pro' ? 'bg-blue-500' : 'bg-blue-100'
+                pendingRole === 'pro' ? 'bg-blue-500' : 'bg-blue-100'
               }`}>
                 <ThumbsUp className={`w-6 h-6 ${
-                  selectedRole === 'pro' ? 'text-white' : 'text-blue-600'
+                  pendingRole === 'pro' ? 'text-white' : 'text-blue-600'
                 }`} />
               </div>
               <div>
@@ -133,22 +141,22 @@ export function TopicSelection() {
           </button>
 
           <button
-            onClick={() => handleSelect('con')}
-            disabled={isSubmitting || !!selectedRole}
+            onClick={() => handleRoleClick('con')}
+            disabled={isSubmitted || isSubmitting}
             className={`p-6 rounded-xl border-2 transition-all ${
-              selectedRole === 'con'
+              pendingRole === 'con'
                 ? 'border-red-500 bg-red-50'
-                : selectedRole
-                ? 'border-gray-200 bg-gray-50 opacity-50'
-                : 'border-gray-200 hover:border-red-300 hover:bg-red-50'
+                : isSubmitted
+                ? 'border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed'
+                : 'border-gray-200 hover:border-red-300 hover:bg-red-50 cursor-pointer'
             }`}
           >
             <div className="flex flex-col items-center gap-3">
               <div className={`p-3 rounded-full ${
-                selectedRole === 'con' ? 'bg-red-500' : 'bg-red-100'
+                pendingRole === 'con' ? 'bg-red-500' : 'bg-red-100'
               }`}>
                 <ThumbsDown className={`w-6 h-6 ${
-                  selectedRole === 'con' ? 'text-white' : 'text-red-600'
+                  pendingRole === 'con' ? 'text-white' : 'text-red-600'
                 }`} />
               </div>
               <div>
@@ -159,19 +167,26 @@ export function TopicSelection() {
           </button>
         </div>
 
+        {/* Submit Button */}
+        <button
+          onClick={handleSubmit}
+          disabled={!pendingRole || isSubmitting || isSubmitted}
+          className={`w-full py-4 rounded-xl font-semibold text-lg transition-all flex items-center justify-center gap-2 ${
+            !pendingRole || isSubmitted
+              ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+              : isSubmitting
+              ? 'bg-green-400 text-white cursor-wait'
+              : 'bg-green-500 hover:bg-green-600 text-white cursor-pointer'
+          }`}
+        >
+          <Check className="w-5 h-5" />
+          {isSubmitting ? '제출 중...' : isSubmitted ? '선택 완료됨' : '선택 완료'}
+        </button>
+
         {/* Selection Status */}
-        {(selectedRole || statusMessage) && (
-          <div className="text-center p-4 bg-gray-50 rounded-lg">
-            <p className="text-gray-800">
-              {statusMessage || (
-                <>
-                  <span className={selectedRole === 'pro' ? 'text-blue-600' : 'text-red-600'}>
-                    {selectedRole === 'pro' ? '찬성' : '반대'}
-                  </span>
-                  을 선택했습니다. 상대방의 선택을 기다리는 중...
-                </>
-              )}
-            </p>
+        {statusMessage && (
+          <div className="mt-4 text-center p-4 bg-gray-50 rounded-lg">
+            <p className="text-gray-800">{statusMessage}</p>
           </div>
         )}
 
