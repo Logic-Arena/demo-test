@@ -12,6 +12,8 @@ export function TopicSelection() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const proceedingRef = useRef(false);
+  const playersRef = useRef(state.players);
+  playersRef.current = state.players;  // 매 렌더마다 최신 players로 업데이트
 
   // topic 변경 시 selectedRole 리셋 (리더가 retryWithNewTopic 실행 후 비리더에서도 리셋)
   const prevTopicRef = useRef(state.gameState?.topic);
@@ -53,8 +55,8 @@ export function TopicSelection() {
     if (!state.room || !state.gameState) return;
     if (proceedingRef.current) return;
 
-    // Realtime으로 이미 동기화된 state.players 사용 (DB 쿼리 제거)
-    const humanPlayers = state.players.filter(p => !p.isAi);
+    // useRef로 최신 players 참조 (closure로 인한 stale state 방지)
+    const humanPlayers = playersRef.current.filter(p => !p.isAi);
     if (humanPlayers.length < 2) return;
     const roles = humanPlayers.map(p => p.role).filter(Boolean);
     if (roles.length < 2) return;
