@@ -1,134 +1,73 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useGame } from '@/contexts/GameContext';
-import { useTimer } from '@/hooks/useTimer';
-import { Timer } from '@/components/game/Timer';
 import { ThumbsUp, ThumbsDown, AlertCircle, Shuffle } from 'lucide-react';
 
 export function TopicSelection() {
-  const { state, selectRole } = useGame();
+  const { state } = useGame();
   const [selectedRole, setSelectedRole] = useState<'pro' | 'con' | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-  const proceedingRef = useRef(false);
-  const playersRef = useRef(state.players);
-  playersRef.current = state.players;  // 매 렌더마다 최신 players로 업데이트
-
-  // topic 변경 시 selectedRole 리셋 (리더가 retryWithNewTopic 실행 후 비리더에서도 리셋)
-  const prevTopicRef = useRef(state.gameState?.topic);
+  // topic 변경 시 UI 초기화
   useEffect(() => {
-    if (state.gameState?.topic && state.gameState.topic !== prevTopicRef.current) {
-      prevTopicRef.current = state.gameState.topic;
-      setSelectedRole(null);
-      setIsSubmitting(false);
-      proceedingRef.current = false;
-    }
+    setSelectedRole(null);
+    setIsSubmitting(false);
+    setStatusMessage(null);
   }, [state.gameState?.topic]);
-
-  const handleTimeout = async () => {
-    // 시간 초과 시 처리
-    await checkSelectionsAndProceed();
-  };
-
-  const { remaining, formattedTime } = useTimer(
-    state.gameState?.timerEndAt || null,
-    { onTimeout: handleTimeout }
-  );
-
-  // 인간 플레이어 전원이 역할을 선택했는지 확인 (gameState 로드 후에도 재실행되도록 의존성 포함)
-  useEffect(() => {
-    if (!state.gameState || state.gameState.phase !== 'topic_selection') return;
-    const humanPlayers = state.players.filter(p => !p.isAi);
-    const allSelected = humanPlayers.length >= 2 && humanPlayers.every(p => p.role);
-    if (allSelected) checkSelectionsAndProceed();
-  }, [state.players, state.gameState?.phase, state.gameState?.topic]);
-
-  // 마운트 시 이미 찬성/반대가 둘 다 선택된 상태면 진행 (초기 로드·늦은 동기화 대비)
-  useEffect(() => {
-    if (!state.room || state.gameState?.phase !== 'topic_selection') return;
-    const t = setTimeout(() => checkSelectionsAndProceed(), 600);
-    return () => clearTimeout(t);
-  }, [state.room?.id, state.gameState?.phase]);
-
-  const checkSelectionsAndProceed = async () => {
-    if (!state.room || !state.gameState) return;
-    if (proceedingRef.current) return;
-
-    // useRef로 최신 players 참조 (closure로 인한 stale state 방지)
-    const humanPlayers = playersRef.current.filter(p => !p.isAi);
-    if (humanPlayers.length < 2) return;
-    const roles = humanPlayers.map(p => p.role).filter(Boolean);
-    if (roles.length < 2) return;
-
-    proceedingRef.current = true;
-    const topicAttempts = state.gameState?.topicAttempts ?? 0;
-
-    try {
-      if (roles[0] !== roles[1]) {
-        // 찬성/반대 다름 → 서버에서 역할·팀 배정 후 토론 시작 (RLS 우회)
-        const res = await fetch('/api/game/confirm-topic', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ roomId: state.room.id }),
-        });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          console.error('[confirm-topic]', err);
-          proceedingRef.current = false;
-          return;
-        }
-      } else {
-        // 같은 역할 → 재시도 or 랜덤 (서버에서 처리)
-        if (topicAttempts >= 2) {
-          const res = await fetch('/api/game/assign-random', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ roomId: state.room.id }),
-          });
-          if (!res.ok) {
-            console.error('[assign-random]', await res.json().catch(() => ({})));
-            proceedingRef.current = false;
-            return;
-          }
-        } else {
-          const res = await fetch('/api/game/retry-topic', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ roomId: state.room.id, topicAttempts }),
-          });
-          if (!res.ok) {
-            console.error('[retry-topic]', await res.json().catch(() => ({})));
-            proceedingRef.current = false;
-            return;
-          }
-          setSelectedRole(null);
-        }
-      }
-    } catch (err) {
-      console.error('[topic proceed]', err);
-      proceedingRef.current = false;
-    }
-  };
 
   const handleSelect = async (role: 'pro' | 'con') => {
     if (isSubmitting || selectedRole) return;
+    if (!state.room || !state.currentPlayer) return;
 
     setIsSubmitting(true);
     setSelectedRole(role);
+    setStatusMessage(null);
 
     try {
-      await selectRole(role);
-      // 선택 후 짧은 간격으로 재시도하여 상대방 선택 감지 즉시 진행
-      for (let i = 0; i < 6; i++) {
-        if (proceedingRef.current) break;
-        await checkSelectionsAndProceed();
-        if (proceedingRef.current) break;
-        await new Promise(r => setTimeout(r, 1000));
+      const res = await fetch('/api/game/select-role', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          roomId: state.room.id,
+          playerId: state.currentPlayer.id,
+          role,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        console.error('[select-role]', data.error);
+        setSelectedRole(null);
+        setStatusMessage('오류가 발생했습니다. 다시 시도해주세요.');
+        return;
+      }
+
+      // status에 따라 UI 메시지 표시
+      switch (data.status) {
+        case 'waiting':
+          setStatusMessage('상대방의 선택을 기다리는 중...');
+          break;
+        case 'started':
+          if (data.random) {
+            setStatusMessage('랜덤으로 역할이 배정되었습니다. 곧 토론이 시작됩니다!');
+          } else {
+            setStatusMessage('역할이 확정되었습니다. 곧 토론이 시작됩니다!');
+          }
+          break;
+        case 'retry':
+          setStatusMessage('선택이 겹쳤습니다. 새로운 주제가 제시됩니다.');
+          // retry 시 selectedRole은 topic 변경 useEffect에서 초기화됨
+          break;
+        default:
+          break;
       }
     } catch (error) {
       console.error('역할 선택 실패:', error);
       setSelectedRole(null);
+      setStatusMessage('네트워크 오류가 발생했습니다. 다시 시도해주세요.');
     } finally {
       setIsSubmitting(false);
     }
@@ -139,11 +78,6 @@ export function TopicSelection() {
   return (
     <div className="max-w-2xl mx-auto">
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-        {/* Timer */}
-        <div className="flex justify-center mb-6">
-          <Timer remaining={remaining} formattedTime={formattedTime} totalSeconds={30} />
-        </div>
-
         {/* Topic */}
         <div className="text-center mb-8">
           <p className="text-sm text-gray-700 mb-2">
@@ -226,13 +160,17 @@ export function TopicSelection() {
         </div>
 
         {/* Selection Status */}
-        {selectedRole && (
+        {(selectedRole || statusMessage) && (
           <div className="text-center p-4 bg-gray-50 rounded-lg">
             <p className="text-gray-800">
-              <span className={selectedRole === 'pro' ? 'text-blue-600' : 'text-red-600'}>
-                {selectedRole === 'pro' ? '찬성' : '반대'}
-              </span>
-              을 선택했습니다. 상대방의 선택을 기다리는 중...
+              {statusMessage || (
+                <>
+                  <span className={selectedRole === 'pro' ? 'text-blue-600' : 'text-red-600'}>
+                    {selectedRole === 'pro' ? '찬성' : '반대'}
+                  </span>
+                  을 선택했습니다. 상대방의 선택을 기다리는 중...
+                </>
+              )}
             </p>
           </div>
         )}

@@ -100,8 +100,6 @@ interface GameContextType {
   // Room actions
   joinRoom: (roomId: string, nickname: string) => Promise<void>;
   leaveRoom: () => Promise<void>;
-  // Topic selection actions
-  selectRole: (role: 'pro' | 'con') => Promise<void>;
   // Debate actions
   submitCard: (content: string) => Promise<void>;
   // Phase management
@@ -496,23 +494,6 @@ export function GameProvider({
     dispatch({ type: 'SET_CURRENT_PLAYER', payload: null });
   };
 
-  // 역할 선택 (자기 자신의 players row에 원하는 역할 기록)
-  const selectRole = async (role: 'pro' | 'con') => {
-    if (!supabase || !state.currentPlayer) return;
-
-    // 자기 자신의 players row에 원하는 역할 기록
-    await supabase
-      .from('players')
-      .update({ role })
-      .eq('id', state.currentPlayer.id);
-
-    // 로컬 즉시 반영
-    dispatch({
-      type: 'UPDATE_PLAYER',
-      payload: { ...state.currentPlayer, role },
-    });
-  };
-
   // 카드 목록 다시 불러오기 (제출 후·phase 변경 시 동기화용). 반환값으로 목록 전달.
   const refetchCards = useCallback(async (): Promise<DebateCard[]> => {
     if (!supabase) return [];
@@ -640,7 +621,6 @@ export function GameProvider({
     state,
     joinRoom,
     leaveRoom,
-    selectRole,
     submitCard,
     advancePhase,
     triggerAiResponse,
