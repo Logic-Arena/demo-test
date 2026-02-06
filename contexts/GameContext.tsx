@@ -108,6 +108,8 @@ interface GameContextType {
   triggerAiResponse: () => Promise<void>;
   // Judging
   requestJudgment: () => Promise<void>;
+  // Player refresh
+  refreshCurrentPlayer: () => Promise<void>;
 }
 
 const GameContext = createContext<GameContextType | null>(null);
@@ -464,6 +466,23 @@ export function GameProvider({
     });
   }, [state.gameState?.phase, state.players, state.currentPlayer, roomId]);
 
+  // localStorage에서 playerId를 읽어 currentPlayer를 다시 설정
+  const refreshCurrentPlayer = useCallback(async () => {
+    if (!supabase) return;
+    const storedPlayerId = localStorage.getItem(`room_${roomId}_playerId`);
+    if (!storedPlayerId) return;
+
+    const { data } = await supabase
+      .from('players')
+      .select('*')
+      .eq('id', storedPlayerId)
+      .single();
+
+    if (data) {
+      dispatch({ type: 'SET_CURRENT_PLAYER', payload: mapPlayerFromDb(data) });
+    }
+  }, [roomId, supabase]);
+
   // 방 참가
   const joinRoom = async (roomId: string, nickname: string) => {
     if (!supabase) throw new Error('Supabase 연결 설정이 필요합니다.');
@@ -625,6 +644,7 @@ export function GameProvider({
     advancePhase,
     triggerAiResponse,
     requestJudgment,
+    refreshCurrentPlayer,
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

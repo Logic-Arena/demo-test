@@ -12,7 +12,7 @@ import { WaitingRoom } from '@/components/game/WaitingRoom';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 
 function RoomContent() {
-  const { state } = useGame();
+  const { state, refreshCurrentPlayer } = useGame();
   const router = useRouter();
   const params = useParams();
   const roomId = params.roomId as string;
@@ -62,6 +62,7 @@ function RoomContent() {
   const handleJoined = () => {
     setHasJoined(true);
     setShowJoinModal(false);
+    refreshCurrentPlayer();
   };
 
   if (state.isLoading) {
