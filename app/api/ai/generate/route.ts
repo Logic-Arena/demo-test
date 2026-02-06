@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getOpenAI, getDebaterSystemPrompt } from '@/lib/openai';
 import { createServiceClient } from '@/lib/supabase/server';
 import { DebateCard, Player, GamePhase } from '@/types/game';
+import { isSimultaneousPhase, getNextPhase, calculateTimerEndAt } from '@/lib/gameLogic';
 
 interface GenerateRequest {
   roomId: string;
@@ -91,7 +92,36 @@ export async function POST(request: NextRequest) {
       content: aiResponse,
     });
 
-    // phase advancement는 클라이언트(GameContext)에서 통합 처리
+    // 동시 제출 페이즈: 전원 제출 완료 시 서버에서 즉시 다음 단계 진행
+    if (isSimultaneousPhase(phase)) {
+      const { data: phaseCards } = await supabase
+        .from('debate_cards')
+        .select('player_id')
+        .eq('room_id', roomId)
+        .eq('phase', phase);
+
+      const { data: roomPlayers } = await supabase
+        .from('players')
+        .select('id')
+        .eq('room_id', roomId);
+
+      if (phaseCards && roomPlayers) {
+        const submittedIds = new Set(phaseCards.map(c => c.player_id));
+        const allSubmitted = roomPlayers.length > 0
+          && roomPlayers.every(p => submittedIds.has(p.id));
+
+        if (allSubmitted) {
+          const nextPhase = getNextPhase(phase);
+          if (nextPhase) {
+            const timerEndAt = calculateTimerEndAt(nextPhase);
+            await supabase
+              .from('game_states')
+              .update({ phase: nextPhase, timer_end_at: timerEndAt })
+              .eq('room_id', roomId);
+          }
+        }
+      }
+    }
 
     return NextResponse.json({ success: true, content: aiResponse });
   } catch (error) {
