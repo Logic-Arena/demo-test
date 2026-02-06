@@ -7,7 +7,6 @@ import { GameProvider, useGame } from '@/contexts/GameContext';
 import { JoinRoomModal } from '@/components/lobby/JoinRoomModal';
 import { TopicSelection } from '@/components/game/TopicSelection';
 import { DebateArena } from '@/components/game/DebateArena';
-import { JudgingResult } from '@/components/game/JudgingResult';
 import { WaitingRoom } from '@/components/game/WaitingRoom';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 
@@ -116,9 +115,6 @@ function RoomContent() {
         return <WaitingRoom />;
       case 'topic_selection':
         return <TopicSelection />;
-      case 'judging':
-      case 'finished':
-        return <JudgingResult />;
       default:
         return <DebateArena />;
     }

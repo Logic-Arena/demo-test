@@ -8,6 +8,7 @@ import { Timer } from './Timer';
 import { TurnIndicator } from './TurnIndicator';
 import { CardStack } from './CardStack';
 import { InputArea } from './InputArea';
+import { JudgingResult } from './JudgingResult';
 import { TeamSidebar } from './TeamSidebar';
 import {
   getCurrentTurnPlayer,
@@ -106,6 +107,7 @@ export function DebateArena() {
     await submitCard(content);
   };
 
+  const isJudgingOrFinished = phase === 'judging' || phase === 'finished';
   const totalSeconds = PHASE_TIME_LIMITS[phase] || 60;
 
   return (
@@ -155,25 +157,32 @@ export function DebateArena() {
           )}
         </div>
 
+        {/* Judging Result (inline) */}
+        {isJudgingOrFinished && <JudgingResult />}
+
         {/* Timer */}
-        <div className="flex justify-center mb-4">
-          <Timer
-            remaining={remaining}
-            formattedTime={formattedTime}
-            totalSeconds={totalSeconds}
-          />
-        </div>
+        {!isJudgingOrFinished && (
+          <div className="flex justify-center mb-4">
+            <Timer
+              remaining={remaining}
+              formattedTime={formattedTime}
+              totalSeconds={totalSeconds}
+            />
+          </div>
+        )}
 
         {/* Input Area */}
-        <InputArea
-          onSubmit={handleSubmit}
-          isDisabled={isInputDisabled}
-          placeholder={
-            hasSubmittedInPhase 
-              ? '이미 이 단계에서 발언을 제출했습니다' 
-              : '논리적인 주장을 작성하세요...'
-          }
-        />
+        {!isJudgingOrFinished && (
+          <InputArea
+            onSubmit={handleSubmit}
+            isDisabled={isInputDisabled}
+            placeholder={
+              hasSubmittedInPhase
+                ? '이미 이 단계에서 발언을 제출했습니다'
+                : '논리적인 주장을 작성하세요...'
+            }
+          />
+        )}
 
         {/* Mobile Team Info */}
         <div className="lg:hidden mt-4 grid grid-cols-2 gap-4">
