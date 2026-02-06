@@ -9,13 +9,14 @@ import { TurnIndicator } from './TurnIndicator';
 import { CardStack } from './CardStack';
 import { InputArea } from './InputArea';
 import { TeamSidebar } from './TeamSidebar';
-import { 
-  getCurrentTurnPlayer, 
-  isAiTurn, 
-  isSimultaneousPhase, 
+import {
+  getCurrentTurnPlayer,
+  isAiTurn,
+  isSimultaneousPhase,
   isTeamDefenseTurn,
   getNextPhase,
-  calculateTimerEndAt
+  calculateTimerEndAt,
+  getRequiredSubmitterIds
 } from '@/lib/gameLogic';
 import { GamePhase, PHASE_TIME_LIMITS } from '@/types/game';
 
@@ -29,14 +30,6 @@ export function DebateArena() {
 
   const cardContainerRef = useRef<HTMLDivElement>(null);
   const prevCardCountRef = useRef(0);
-
-  // 카드가 새로 추가된 경우에만 자동 스크롤 (폴링으로 같은 데이터 재설정 시 스크롤 방지)
-  useEffect(() => {
-    if (cards.length > prevCardCountRef.current && cardContainerRef.current) {
-      cardContainerRef.current.scrollTop = cardContainerRef.current.scrollHeight;
-    }
-    prevCardCountRef.current = cards.length;
-  }, [cards]);
 
   // 현재 플레이어 찾기
   const currentPlayer = state.currentPlayer;
@@ -59,6 +52,27 @@ export function DebateArena() {
   const hasSubmittedInPhase = cards.some(
     card => card.phase === phase && card.playerId === currentPlayer?.id
   );
+
+  // 동시 작성 페이즈에서 전원 제출 완료 여부
+  const allSubmittedInPhase = (() => {
+    if (!isSimultaneousPhase(phase)) return true;
+    const requiredIds = getRequiredSubmitterIds(phase, players);
+    const submittedIds = new Set(cards.filter(c => c.phase === phase).map(c => c.playerId));
+    return requiredIds.every(id => submittedIds.has(id));
+  })();
+
+  // 전원 제출 전에는 해당 페이즈 카드를 숨김
+  const visibleCards = allSubmittedInPhase
+    ? cards
+    : cards.filter(c => c.phase !== phase);
+
+  // 카드가 새로 추가된 경우에만 자동 스크롤 (폴링으로 같은 데이터 재설정 시 스크롤 방지)
+  useEffect(() => {
+    if (visibleCards.length > prevCardCountRef.current && cardContainerRef.current) {
+      cardContainerRef.current.scrollTop = cardContainerRef.current.scrollHeight;
+    }
+    prevCardCountRef.current = visibleCards.length;
+  }, [visibleCards]);
 
   // 입력 비활성화 조건
   const isInputDisabled = !isMyTurn || hasSubmittedInPhase || isAiTurn(phase);
@@ -129,11 +143,16 @@ export function DebateArena() {
 
         {/* Card Stack */}
         <div ref={cardContainerRef} className="bg-white rounded-xl border border-gray-200 p-4 mb-4 max-h-[400px] overflow-y-auto">
-          <CardStack 
-            cards={cards} 
+          <CardStack
+            cards={visibleCards}
             players={players}
             currentPhase={phase}
           />
+          {isSimultaneousPhase(phase) && hasSubmittedInPhase && !allSubmittedInPhase && (
+            <div className="text-center py-8 text-gray-500">
+              <p>제출 완료! 다른 참가자의 제출을 기다리는 중...</p>
+            </div>
+          )}
         </div>
 
         {/* Timer */}
