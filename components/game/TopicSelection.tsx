@@ -68,7 +68,8 @@ export function TopicSelection() {
           break;
         case 'retry':
           setStatusMessage('선택이 겹쳤습니다. 새로운 주제가 제시됩니다.');
-          // retry 시 상태는 topic 변경 useEffect에서 초기화됨
+          setIsSubmitted(false);
+          setPendingRole(null);
           break;
         default:
           break;
