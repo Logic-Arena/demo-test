@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     const { roomId, topic, cards, players } = body;
 
     // role 없는 플레이어 제외 (중복 AI 방어)
-    const activePlayers = players.filter(p => p.role != null);
+    const activePlayers = players.filter(p => p.role === 'pro' || p.role === 'con');
 
     // 참가자 목록 — role 기준 중복 제거 (인간 우선, AI 보조)
     const uniquePlayers: Player[] = [];

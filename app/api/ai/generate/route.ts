@@ -130,8 +130,9 @@ export async function POST(request: NextRequest) {
 
       const { data: roomPlayers } = await supabase
         .from('players')
-        .select('id')
-        .eq('room_id', roomId);
+        .select('id, role')
+        .eq('room_id', roomId)
+        .in('role', ['pro', 'con']);
 
       if (phaseCards && roomPlayers) {
         const submittedIds = new Set(phaseCards.map(c => c.player_id));

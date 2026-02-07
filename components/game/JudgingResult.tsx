@@ -71,7 +71,7 @@ export function JudgingResult() {
   }[judgment.winnerTeam];
 
   // 점수 순으로 플레이어 정렬
-  const sortedPlayers = [...players].sort((a, b) => {
+  const sortedPlayers = [...players].filter(p => p.role === 'pro' || p.role === 'con').sort((a, b) => {
     const scoreA = judgment.scores[a.id] || 0;
     const scoreB = judgment.scores[b.id] || 0;
     return scoreB - scoreA;
@@ -150,7 +150,7 @@ export function JudgingResult() {
         </div>
 
         <div className="space-y-4">
-          {players.map((player) => {
+          {players.filter(p => p.role === 'pro' || p.role === 'con').map((player) => {
             const feedback = judgment.feedback[player.id];
             const isPro = player.role === 'pro';
             

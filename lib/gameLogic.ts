@@ -90,7 +90,7 @@ export function getRequiredSubmitterIds(phase: GamePhase, players: Player[]): st
   }
   if (isSimultaneousPhase(phase)) {
     // role이 할당된 플레이어만 (중복 AI 방어)
-    return players.filter(p => p.role != null).map(p => p.id);
+    return players.filter(p => p.role === 'pro' || p.role === 'con').map(p => p.id);
   }
   if (isTeamDefenseTurn(phase)) {
     // 팀 전원 (인간 + AI)

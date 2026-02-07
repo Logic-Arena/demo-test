@@ -29,7 +29,7 @@ export function getDebaterSystemPrompt(
     .filter(p => p.role === role && p.nickname !== aiNickname)
     .map(p => p.nickname);
   const opponents = players
-    .filter(p => p.role !== role && p.role !== null)
+    .filter(p => (p.role === 'pro' || p.role === 'con') && p.role !== role)
     .map(p => p.nickname);
 
   const teammateStr = teammates.length > 0 ? teammates.join(', ') : '없음';
