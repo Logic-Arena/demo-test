@@ -5,9 +5,12 @@ let openaiInstance: OpenAI | null = null;
 
 export function getOpenAI(): OpenAI {
   if (!openaiInstance) {
-    openaiInstance = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey || apiKey.trim() === '') {
+      console.error('[getOpenAI] OPENAI_API_KEY가 설정되지 않았습니다. .env.local을 확인하세요.');
+      throw new Error('OPENAI_API_KEY가 설정되지 않았습니다.');
+    }
+    openaiInstance = new OpenAI({ apiKey });
   }
   return openaiInstance;
 }
@@ -37,23 +40,20 @@ export const TOPIC_GENERATOR_PROMPT = `당신은 토론 주제 생성기입니�
 따옴표나 번호 없이 주제 문장만 출력하세요.`;
 
 // AI 주제 생성 함수 (서버 사이드 재사용)
+// 실패 시 예외를 던져 호출자가 500 반환 또는 fallback 처리할 수 있게 함
 export async function generateTopic(): Promise<string> {
   const { getRandomTopic } = await import('@/lib/gameLogic');
-  try {
-    const completion = await getOpenAI().chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        { role: 'system', content: TOPIC_GENERATOR_PROMPT },
-        { role: 'user', content: '새로운 토론 주제를 하나 제시해주세요.' },
-      ],
-      max_tokens: 100,
-      temperature: 1.0,
-    });
-    return completion.choices[0]?.message?.content?.trim() || getRandomTopic();
-  } catch (error) {
-    console.error('[generateTopic] OpenAI 호출 실패:', error);
-    return getRandomTopic();
-  }
+  const completion = await getOpenAI().chat.completions.create({
+    model: 'gpt-4o',
+    messages: [
+      { role: 'system', content: TOPIC_GENERATOR_PROMPT },
+      { role: 'user', content: '새로운 토론 주제를 하나 제시해주세요.' },
+    ],
+    max_tokens: 100,
+    temperature: 1.0,
+  });
+  const content = completion.choices[0]?.message?.content?.trim();
+  return content || getRandomTopic();
 }
 
 // AI 심판 시스템 프롬프트

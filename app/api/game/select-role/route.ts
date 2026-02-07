@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { generateTopic } from '@/lib/openai';
+import { getRandomTopic } from '@/lib/gameLogic';
 
 /**
  * 단일 API로 역할 선택 처리
@@ -146,8 +147,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ status: 'started', random: true });
     }
 
-    // 시도 < 3회 → 새 주제 + 역할 초기화
-    const newTopic = await generateTopic();
+    // 시도 < 3회 → 새 주제 + 역할 초기화 (AI 실패 시 fallback)
+    let newTopic: string;
+    try {
+      newTopic = await generateTopic();
+    } catch (err) {
+      console.error('[select-role] 주제 생성 실패, fallback 사용:', err);
+      newTopic = getRandomTopic();
+    }
     const timerEndAt = new Date(Date.now() + 30 * 1000).toISOString();
 
     // game_state 업데이트 (새 주제, attempts 증가)
