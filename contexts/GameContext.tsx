@@ -454,7 +454,7 @@ export function GameProvider({
     if (triggeredPhaseRef.current === phase) return;
 
     // 리더 클라이언트만 AI를 트리거
-    const humanPlayers = state.players.filter(p => !p.isAi && p.role !== 'spectator').sort((a, b) => a.id.localeCompare(b.id));
+    const humanPlayers = state.players.filter(p => !p.isAi).sort((a, b) => a.id.localeCompare(b.id));
     const isLeader = state.currentPlayer && humanPlayers.length > 0 && humanPlayers[0].id === state.currentPlayer.id;
     if (!isLeader) return;
 
