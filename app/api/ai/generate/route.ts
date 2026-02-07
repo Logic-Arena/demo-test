@@ -43,30 +43,58 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, skipped: true });
     }
 
-    // 이전 토론 내용을 컨텍스트로 구성
-    const conversationHistory = cards.map(card => {
+    // 이전 토론 내용을 컨텍스트로 구성 (번호 + 페이즈 라벨 포함)
+    const phaseLabel = (p: string): string => {
+      if (p.includes('claim')) return '주장';
+      if (p.includes('rebuttal')) return '반론';
+      if (p.includes('defense')) return '변론';
+      if (p.includes('counter')) return '재반론';
+      if (p.includes('final')) return '최종';
+      return '';
+    };
+
+    const conversationHistory = cards.map((card, idx) => {
       const player = players.find(p => p.id === card.playerId);
       const role = player?.role === 'pro' ? '찬성' : '반대';
-      const isAi = player?.isAi ? ' (AI)' : '';
-      return `[${role}${isAi}] ${player?.nickname}: ${card.content}`;
+      const label = phaseLabel(card.phase);
+      return `[${idx + 1}] [${role} | ${label}] ${player?.nickname}: ${card.content}`;
     }).join('\n\n');
 
     // 시스템 프롬프트
-    const systemPrompt = getDebaterSystemPrompt(aiPlayer.role as 'pro' | 'con', topic);
+    const systemPrompt = getDebaterSystemPrompt(
+      aiPlayer.role as 'pro' | 'con',
+      topic,
+      aiPlayer.nickname,
+      players
+    );
+
+    // 팀원/상대 이름 추출
+    const teammates = players
+      .filter(p => p.role === aiPlayer.role && p.id !== aiPlayer.id)
+      .map(p => p.nickname);
+    const opponents = players
+      .filter(p => p.role !== aiPlayer.role && p.role !== null)
+      .map(p => p.nickname);
+    const opponentNames = opponents.join(', ') || '상대';
+    const teammateNames = teammates.join(', ') || '팀원';
 
     // 현재 단계에 맞는 지시 추가
     let phaseInstruction = '';
     if (phase.includes('claim')) {
-      phaseInstruction = '주어진 주제에 대해 당신의 입장을 논리적으로 주장하세요.';
+      phaseInstruction = `주어진 주제에 대해 당신의 입장을 논리적으로 주장하세요. 팀원(${teammateNames})과 다른 각도에서 접근하세요. "저는 ~라고 생각합니다" 형태로 시작하세요.`;
     } else if (phase.includes('rebuttal')) {
-      phaseInstruction = '상대 팀의 주장에 대해 논리적으로 반박하세요.';
-    } else if (phase.includes('counter')) {
-      phaseInstruction = '상대의 변론에 대해 간결하게 재반론하세요.';
+      phaseInstruction = `상대 팀(${opponentNames})의 주장에 대해 논리적으로 반박하세요. "${opponents[0] || '상대'}님이 ~라고 하셨는데"처럼 상대 발언을 구체적으로 인용한 뒤 취약점을 공략하세요.`;
     } else if (phase.includes('defense')) {
-      phaseInstruction = '팀의 입장을 변호하고 상대 반론에 대응하세요.';
+      phaseInstruction = `팀의 입장을 변호하고 상대 반론에 대응하세요. 팀원(${teammateNames})의 주장을 보완하면서, 상대(${opponentNames})의 반론을 요약한 뒤 왜 그것이 부족한지 설명하세요.`;
+    } else if (phase.includes('counter')) {
+      phaseInstruction = `상대(${opponentNames})의 변론 내용을 구체적으로 언급하며 재반론하세요. 핵심 1가지에 집중하여 간결하게 반박하세요.`;
     } else if (phase.includes('final')) {
-      phaseInstruction = '최종 의견을 정리하여 설득력 있게 마무리하세요.';
+      phaseInstruction = `최종 의견을 정리하세요. 우리 팀의 핵심 논점을 요약하고, 상대 팀(${opponentNames})의 주장이 왜 부족했는지 지적하며 설득력 있게 마무리하세요.`;
     }
+
+    // 진행 상황 요약
+    const totalCards = cards.length;
+    const roundInfo = `현재까지 총 ${totalCards}개의 발언이 있었습니다.`;
 
     // OpenAI API 호출
     const completion = await getOpenAI().chat.completions.create({
@@ -75,7 +103,7 @@ export async function POST(request: NextRequest) {
         { role: 'system', content: systemPrompt },
         {
           role: 'user',
-          content: `${phaseInstruction}\n\n지금까지의 토론 내용:\n${conversationHistory || '(아직 토론 내용이 없습니다)'}\n\n당신의 발언:`
+          content: `${phaseInstruction}\n\n${roundInfo}\n\n지금까지의 토론 내용:\n${conversationHistory || '(아직 토론 내용이 없습니다)'}\n\n다른 참가자의 이름과 발언을 구체적으로 언급하며 답변하세요.\n\n${aiPlayer.nickname}의 발언:`
         },
       ],
       max_tokens: 500,

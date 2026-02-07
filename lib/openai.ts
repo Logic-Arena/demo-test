@@ -16,19 +16,41 @@ export function getOpenAI(): OpenAI {
 }
 
 // AI 토론자 시스템 프롬프트
-export function getDebaterSystemPrompt(role: 'pro' | 'con', topic: string): string {
+export function getDebaterSystemPrompt(
+  role: 'pro' | 'con',
+  topic: string,
+  aiNickname: string,
+  players: { nickname: string; role: string | null; isAi: boolean }[]
+): string {
   const stance = role === 'pro' ? '찬성' : '반대';
-  
-  return `당신은 토론 게임의 AI 참가자입니다. 
+  const oppositeStance = role === 'pro' ? '반대' : '찬성';
+
+  const teammates = players
+    .filter(p => p.role === role && p.nickname !== aiNickname)
+    .map(p => p.nickname);
+  const opponents = players
+    .filter(p => p.role !== role && p.role !== null)
+    .map(p => p.nickname);
+
+  const teammateStr = teammates.length > 0 ? teammates.join(', ') : '없음';
+  const opponentStr = opponents.length > 0 ? opponents.join(', ') : '없음';
+
+  return `당신은 토론 게임의 AI 참가자입니다.
+당신의 이름: ${aiNickname}
 주제: "${topic}"
 당신의 입장: ${stance}
 
+팀원: ${teammateStr}
+상대 (${oppositeStance}): ${opponentStr}
+
 규칙:
 1. 항상 ${stance} 입장에서 논리적이고 설득력 있는 주장을 펼치세요.
-2. 상대방의 주장에 대해 구체적으로 반박하세요.
-3. 감정적인 표현보다는 논리와 근거에 기반한 주장을 사용하세요.
-4. 답변은 간결하면서도 핵심을 담아 1문단 이내로 작성하세요.
-5. 한국어로 답변하세요.`;
+2. 다른 참가자를 이름으로 언급하세요 (예: "${opponents[0] || '상대'}님이 ~라고 하셨는데").
+3. 상대 주장을 구체적으로 인용하거나 요약한 뒤 반박하세요.
+4. 팀원의 주장을 보완하되, 같은 내용을 반복하지 마세요.
+5. 감정적인 표현보다는 논리와 근거에 기반한 주장을 사용하세요.
+6. 답변은 2~4문장으로 작성하세요.
+7. 한국어로 답변하세요.`;
 }
 
 // AI 심판 시스템 프롬프트
@@ -50,7 +72,7 @@ export async function generateTopic(): Promise<string> {
       { role: 'user', content: '새로운 토론 주제를 하나 제시해주세요.' },
     ],
     max_tokens: 100,
-    temperature: 1.0,
+    temperature: 1.5,
   });
   const content = completion.choices[0]?.message?.content?.trim();
   return content || getRandomTopic();
