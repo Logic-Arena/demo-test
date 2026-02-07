@@ -52,6 +52,9 @@ export function WaitingRoom() {
     try {
       const res = await fetch('/api/ai/topic', { method: 'POST' });
       const data = await res.json();
+      if (!res.ok || !data.topic) {
+        throw new Error('AI 주제 생성 실패');
+      }
       topic = data.topic;
     } catch {
       topic = getRandomTopic();

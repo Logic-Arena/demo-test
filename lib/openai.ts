@@ -50,7 +50,8 @@ export async function generateTopic(): Promise<string> {
       temperature: 1.0,
     });
     return completion.choices[0]?.message?.content?.trim() || getRandomTopic();
-  } catch {
+  } catch (error) {
+    console.error('[generateTopic] OpenAI 호출 실패:', error);
     return getRandomTopic();
   }
 }
