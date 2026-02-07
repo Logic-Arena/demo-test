@@ -22,10 +22,13 @@ export async function POST(request: NextRequest) {
     const body: JudgeRequest = await request.json();
     const { roomId, topic, cards, players } = body;
 
+    // role 없는 플레이어 제외 (중복 AI 방어)
+    const activePlayers = players.filter(p => p.role != null);
+
     // 참가자 목록 — role 기준 중복 제거 (인간 우선, AI 보조)
     const uniquePlayers: Player[] = [];
     const seenRoles = new Set<string>();
-    for (const p of players) {
+    for (const p of activePlayers) {
       const key = `${p.role}_${p.isAi}`;
       if (!seenRoles.has(key)) {
         seenRoles.add(key);

@@ -12,11 +12,15 @@ export function WaitingRoom() {
   const humanPlayers = state.players.filter(p => !p.isAi);
 
   useEffect(() => {
-    // 2명이 모이면 게임 시작
-    if (humanPlayers.length >= 2 && state.gameState?.phase === 'waiting') {
+    // 2명이 모이면 리더(ID 정렬 첫 번째)만 게임 시작 호출 — 중복 AI 생성 방지
+    const isLeader = state.currentPlayer
+      && humanPlayers.length >= 2
+      && [...humanPlayers].sort((a, b) => a.id.localeCompare(b.id))[0].id === state.currentPlayer.id;
+
+    if (isLeader && state.gameState?.phase === 'waiting') {
       startGame();
     }
-  }, [humanPlayers.length, state.gameState?.phase]);
+  }, [humanPlayers.length, state.gameState?.phase, state.currentPlayer]);
 
   const startGame = async () => {
     if (!state.room) return;

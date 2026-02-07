@@ -89,8 +89,8 @@ export function getRequiredSubmitterIds(phase: GamePhase, players: Player[]): st
     return [];
   }
   if (isSimultaneousPhase(phase)) {
-    // 전원 (AI 포함 4명)
-    return players.map(p => p.id);
+    // role이 할당된 플레이어만 (중복 AI 방어)
+    return players.filter(p => p.role != null).map(p => p.id);
   }
   if (isTeamDefenseTurn(phase)) {
     // 팀 전원 (인간 + AI)
