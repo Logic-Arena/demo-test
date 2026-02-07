@@ -432,6 +432,19 @@ export function GameProvider({
       .then(() => {});
   }, [state.cards, state.gameState?.phase, state.players, roomId, supabase]);
 
+  // 카드 목록 다시 불러오기 (제출 후·phase 변경 시 동기화용). 반환값으로 목록 전달.
+  const refetchCards = useCallback(async (): Promise<DebateCard[]> => {
+    if (!supabase) return [];
+    const { data } = await supabase
+      .from('debate_cards')
+      .select('*')
+      .eq('room_id', roomId)
+      .order('created_at', { ascending: true });
+    const list = (data || []).map(mapCardFromDb);
+    dispatch({ type: 'SET_CARDS', payload: list });
+    return list;
+  }, [roomId, supabase]);
+
   // AI 트리거 — phase 변경 시 해당 phase에서 AI가 카드를 제출해야 하면 호출
   // 리더 클라이언트(인간 플레이어 ID 정렬 시 첫 번째)만 트리거하여 이중 호출 방지
   const triggeredPhaseRef = useRef<string | null>(null);
@@ -518,19 +531,6 @@ export function GameProvider({
     await supabase.from('players').delete().eq('id', state.currentPlayer.id);
     dispatch({ type: 'SET_CURRENT_PLAYER', payload: null });
   };
-
-  // 카드 목록 다시 불러오기 (제출 후·phase 변경 시 동기화용). 반환값으로 목록 전달.
-  const refetchCards = useCallback(async (): Promise<DebateCard[]> => {
-    if (!supabase) return [];
-    const { data } = await supabase
-      .from('debate_cards')
-      .select('*')
-      .eq('room_id', roomId)
-      .order('created_at', { ascending: true });
-    const list = (data || []).map(mapCardFromDb);
-    dispatch({ type: 'SET_CARDS', payload: list });
-    return list;
-  }, [roomId, supabase]);
 
   // 카드 제출 (제출 즉시 화면에 반영 + 필요 시 다음 단계로 진행)
   const submitCard = async (content: string) => {
