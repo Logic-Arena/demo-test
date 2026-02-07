@@ -20,7 +20,7 @@ export type GamePhase =
   | 'finished';
 
 // 역할 타입
-export type Role = 'pro' | 'con';
+export type Role = 'pro' | 'con' | 'spectator';
 
 // 팀 타입
 export type Team = 'A' | 'B';

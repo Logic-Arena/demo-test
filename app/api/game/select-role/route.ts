@@ -42,12 +42,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '역할 저장 실패' }, { status: 500 });
     }
 
-    // 2. 두 인간 플레이어 역할 조회
+    // 2. 두 인간 플레이어 역할 조회 (관전자 제외)
     const { data: humanPlayers, error: fetchError } = await supabase
       .from('players')
       .select('id, role')
       .eq('room_id', roomId)
-      .eq('is_ai', false);
+      .eq('is_ai', false)
+      .neq('role', 'spectator');
 
     if (fetchError || !humanPlayers) {
       console.error('[select-role] 플레이어 조회 실패:', fetchError);

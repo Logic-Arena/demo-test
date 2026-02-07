@@ -21,6 +21,7 @@ export function JoinRoomModal({ isOpen, onClose, roomId, roomName, onJoined }: J
   });
   const [isJoining, setIsJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [joinMode, setJoinMode] = useState<'participant' | 'spectator'>('participant');
   const supabase = useMemo(() => createClient(), []);
 
   if (!isOpen) return null;
@@ -65,6 +66,7 @@ export function JoinRoomModal({ isOpen, onClose, roomId, roomName, onJoined }: J
             user_id: user?.id || null,
             nickname: nickname.trim(),
             is_ai: false,
+            ...(joinMode === 'spectator' ? { role: 'spectator' } : {}),
           })
           .select()
           .single();
@@ -126,6 +128,31 @@ export function JoinRoomModal({ isOpen, onClose, roomId, roomName, onJoined }: J
             />
           </div>
 
+          <div className="flex gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => { setJoinMode('participant'); }}
+              className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                joinMode === 'participant'
+                  ? 'bg-blue-100 text-blue-700 border-2 border-blue-500'
+                  : 'bg-gray-50 text-gray-600 border-2 border-gray-200 hover:bg-gray-100'
+              }`}
+            >
+              참가자로 입장
+            </button>
+            <button
+              type="button"
+              onClick={() => { setJoinMode('spectator'); }}
+              className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                joinMode === 'spectator'
+                  ? 'bg-gray-700 text-white border-2 border-gray-700'
+                  : 'bg-gray-50 text-gray-600 border-2 border-gray-200 hover:bg-gray-100'
+              }`}
+            >
+              관전자로 입장
+            </button>
+          </div>
+
           <div className="flex gap-3 pt-2">
             <button
               type="button"
@@ -139,7 +166,7 @@ export function JoinRoomModal({ isOpen, onClose, roomId, roomName, onJoined }: J
               disabled={isJoining}
               className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isJoining ? '참가 중...' : '참가하기'}
+              {isJoining ? '입장 중...' : joinMode === 'spectator' ? '관전하기' : '참가하기'}
             </button>
           </div>
         </form>

@@ -2,10 +2,31 @@
 
 import { useState, useEffect } from 'react';
 import { useGame } from '@/contexts/GameContext';
-import { ThumbsUp, ThumbsDown, AlertCircle, Shuffle, Check } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, AlertCircle, Shuffle, Check, Eye } from 'lucide-react';
 
 export function TopicSelection() {
   const { state } = useGame();
+
+  // 관전자는 대기 화면만 표시
+  if (state.currentPlayer?.role === 'spectator') {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
+          <div className="text-center mb-8">
+            <p className="text-sm text-gray-700 mb-2">토론 주제</p>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              &ldquo;{state.gameState?.topic}&rdquo;
+            </h2>
+          </div>
+          <div className="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-xl">
+            <Eye className="w-8 h-8 text-gray-400" />
+            <p className="text-gray-600 font-medium">관전 모드</p>
+            <p className="text-sm text-gray-500">참가자들이 역할을 선택하고 있습니다...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
   const [pendingRole, setPendingRole] = useState<'pro' | 'con' | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);

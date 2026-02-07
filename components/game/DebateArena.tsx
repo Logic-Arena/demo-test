@@ -38,9 +38,11 @@ export function DebateArena() {
   // 현재 차례 플레이어
   const currentTurnPlayer = getCurrentTurnPlayer(phase, players);
 
+  const isSpectator = currentPlayer?.role === 'spectator';
+
   // 내 차례인지 확인
   const isMyTurn = (() => {
-    if (!currentPlayer) return false;
+    if (!currentPlayer || isSpectator) return false;
     if (isSimultaneousPhase(phase)) return true;
     if (isTeamDefenseTurn(phase)) {
       const teamRole = phase.includes('conTeam') ? 'con' : 'pro';
@@ -177,7 +179,9 @@ export function DebateArena() {
             onSubmit={handleSubmit}
             isDisabled={isInputDisabled}
             placeholder={
-              hasSubmittedInPhase
+              isSpectator
+                ? '관전 모드입니다'
+                : hasSubmittedInPhase
                 ? '이미 이 단계에서 발언을 제출했습니다'
                 : '논리적인 주장을 작성하세요...'
             }

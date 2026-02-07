@@ -136,7 +136,7 @@ function RoomContent() {
               <div>
                 <h1 className="font-semibold text-gray-900">{state.room.name}</h1>
                 <p className="text-xs text-gray-700">
-                  참가자: {state.players.filter(p => !p.isAi).length}/2
+                  참가자: {state.players.filter(p => !p.isAi && p.role !== 'spectator').length}/2
                 </p>
               </div>
             </div>

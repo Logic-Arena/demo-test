@@ -189,5 +189,8 @@ export function getPlayerDisplayName(player: Player): string {
   if (player.isAi) {
     return player.role === 'pro' ? '찬성AI' : '반대AI';
   }
+  if (player.role === 'spectator') {
+    return `${player.nickname} (관전)`;
+  }
   return `${player.nickname} (${player.role === 'pro' ? '찬성' : '반대'})`;
 }

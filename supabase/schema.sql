@@ -16,7 +16,7 @@ create table if not exists public.players (
   room_id uuid references public.rooms(id) on delete cascade not null,
   user_id uuid references auth.users(id) on delete set null,
   nickname text not null,
-  role text check (role in ('pro', 'con') or role is null),
+  role text check (role in ('pro', 'con', 'spectator') or role is null),
   is_ai boolean default false,
   team text check (team in ('A', 'B') or team is null),
   joined_at timestamp with time zone default now()

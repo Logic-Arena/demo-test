@@ -9,7 +9,8 @@ import { getRandomTopic } from '@/lib/gameLogic';
 export function WaitingRoom() {
   const { state } = useGame();
   const supabase = useMemo(() => createClient(), []);
-  const humanPlayers = state.players.filter(p => !p.isAi);
+  const humanPlayers = state.players.filter(p => !p.isAi && p.role !== 'spectator');
+  const spectators = state.players.filter(p => p.role === 'spectator');
 
   useEffect(() => {
     // 2명이 모이면 리더(ID 정렬 첫 번째)만 게임 시작 호출 — 중복 AI 생성 방지
@@ -129,6 +130,26 @@ export function WaitingRoom() {
             </div>
           )}
         </div>
+
+        {/* Spectators */}
+        {spectators.length > 0 && (
+          <div className="space-y-3 mb-8">
+            <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+              관전자 ({spectators.length})
+            </h3>
+            {spectators.map((player) => (
+              <div
+                key={player.id}
+                className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
+              >
+                <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center text-white text-sm font-medium">
+                  {player.nickname.charAt(0).toUpperCase()}
+                </div>
+                <p className="text-sm text-gray-600">{player.nickname}</p>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Info */}
         <div className="bg-blue-50 rounded-lg p-4">
