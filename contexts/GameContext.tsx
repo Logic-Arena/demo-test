@@ -450,21 +450,27 @@ export function GameProvider({
 
     triggeredPhaseRef.current = phase;
 
-    aiPlayers.forEach(aiPlayer => {
-      fetch('/api/ai/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          roomId,
-          phase,
-          topic: state.gameState!.topic,
-          cards: state.cards,
-          players: state.players,
-          targetPlayerId: aiPlayer.id,
-        }),
-      }).catch(err => console.error('[AI trigger] 실패:', aiPlayer.id, err));
-    });
-  }, [state.gameState?.phase, state.players, state.currentPlayer, roomId]);
+    (async () => {
+      await Promise.allSettled(
+        aiPlayers.map(aiPlayer =>
+          fetch('/api/ai/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              roomId,
+              phase,
+              topic: state.gameState!.topic,
+              cards: state.cards,
+              players: state.players,
+              targetPlayerId: aiPlayer.id,
+            }),
+          })
+        )
+      );
+      // AI 카드 삽입 완료 → 카드 재조회 → allSubmitted useEffect 트리거
+      await refetchCards();
+    })();
+  }, [state.gameState?.phase, state.players, state.currentPlayer, roomId, refetchCards]);
 
   // localStorage에서 playerId를 읽어 currentPlayer를 다시 설정
   const refreshCurrentPlayer = useCallback(async () => {
