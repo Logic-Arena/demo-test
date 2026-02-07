@@ -29,6 +29,33 @@ export function getDebaterSystemPrompt(role: 'pro' | 'con', topic: string): stri
 }
 
 // AI 심판 시스템 프롬프트
+// AI 주제 생성 시스템 프롬프트
+export const TOPIC_GENERATOR_PROMPT = `당신은 토론 주제 생성기입니다.
+흥미롭고 논쟁적인 토론 주제를 1개 생성하세요.
+찬반이 명확히 나뉠 수 있는 주제여야 합니다.
+한 문장으로 작성하세요.
+따옴표나 번호 없이 주제 문장만 출력하세요.`;
+
+// AI 주제 생성 함수 (서버 사이드 재사용)
+export async function generateTopic(): Promise<string> {
+  const { getRandomTopic } = await import('@/lib/gameLogic');
+  try {
+    const completion = await getOpenAI().chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        { role: 'system', content: TOPIC_GENERATOR_PROMPT },
+        { role: 'user', content: '새로운 토론 주제를 하나 제시해주세요.' },
+      ],
+      max_tokens: 100,
+      temperature: 1.0,
+    });
+    return completion.choices[0]?.message?.content?.trim() || getRandomTopic();
+  } catch {
+    return getRandomTopic();
+  }
+}
+
+// AI 심판 시스템 프롬프트
 export const JUDGE_SYSTEM_PROMPT = `당신은 토론 게임의 공정한 심판입니다.
 
 평가 기준:

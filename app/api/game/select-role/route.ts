@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
-import { getRandomTopic } from '@/lib/gameLogic';
+import { generateTopic } from '@/lib/openai';
 
 /**
  * 단일 API로 역할 선택 처리
@@ -147,7 +147,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 시도 < 3회 → 새 주제 + 역할 초기화
-    const newTopic = getRandomTopic();
+    const newTopic = await generateTopic();
     const timerEndAt = new Date(Date.now() + 30 * 1000).toISOString();
 
     // game_state 업데이트 (새 주제, attempts 증가)

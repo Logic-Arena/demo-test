@@ -47,8 +47,15 @@ export function WaitingRoom() {
       ]);
     }
 
-    // 게임 상태를 topic_selection으로 변경
-    const topic = getRandomTopic();
+    // 게임 상태를 topic_selection으로 변경 — AI로 주제 생성, 실패 시 fallback
+    let topic: string;
+    try {
+      const res = await fetch('/api/ai/topic', { method: 'POST' });
+      const data = await res.json();
+      topic = data.topic;
+    } catch {
+      topic = getRandomTopic();
+    }
     const timerEndAt = new Date(Date.now() + 30 * 1000).toISOString();
 
     await supabase
